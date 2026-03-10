@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pay Day - Employee Management</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+     body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #eef2f7, #d6e0f0);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+
+    .container {
+      background: #ffffff;
+      padding: 48px 56px;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 1000px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.6rem;
+      color: #1f2d3d;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      font-size: 1.15rem;
+      color: #6b7280;
+    }
+
+    .actions {
+      margin-top: 48px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 20px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 12px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+    }
+
+    .btn-employee {
+      background: #2563eb;
+    }
+
+    .btn-employee:hover {
+      background: #1e4ed8;
+    }
+	
+	.btn-personal{
+      background: #325e3b;
+    }
+
+    .btn-personal:hover {
+      background: #4e4ed8;
+    }
+
+    .btn-bank {
+      background: #7c3aed;
+    }
+
+    .btn-bank:hover {
+      background: #6d28d9;
+    }
+
+    .btn-compensation {
+      background: #059669;
+    }
+
+    .btn-compensation:hover {
+      background: #047857;
+    }
+
+    .btn-salary {
+      background: #d97706;
+    }
+
+    .btn-salary:hover {
+      background: #b45309;
+    }
+	
+	.btn-tax {
+	  background: #0f766e;
+	}
+	
+	.btn-tax:hover {
+	  background: #0d5f59;
+	}
+
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 36px 24px;
+      }
+
+      h1 {
+        font-size: 2.1rem;
+      }
+    }
+	
+	
+  </style>
+</head>
+
+<body>
+  <div class="container">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+    <!-- <h1>Pay Day</h1> -->
+    <p class="subtitle">Employee Payment System</p>
+	
+	<div class="actions">
+	<a href="/employee_details" class="btn btn-employee">Employee Details</a>
+	<a href="/personal_details" class="btn btn-personal">  Employee Personal Details</a>
+	<a href="/pay" class="btn btn-salary">Pay</a>	
+	<a href="/compensation-details" class="btn btn-compensation">Compensation Details</a>
+	<a href="/tax-deductions" class="btn btn-tax">Tax Calculations</a>
+	<a href="/salary" class="btn btn-salary">Salary</a>	
+	<a href="/bank-details" class="btn btn-bank">Bank Details</a>	
+	<a href="/reports" class="btn btn-reports" style="background: #c026d3;">Reports</a>
+	</div>
+	
+  </div>
+</body>
+</html>

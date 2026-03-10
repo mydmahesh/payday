@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Personal Details - Pay Day</title>
+  <style>
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      text-align: center;
+      color: #333;
+    }
+    .header .subtitle {
+      margin: 0;
+      font-size: 1.8em;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+    .buttons {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 17px;
+      margin: 0 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      transition: background 0.2s;
+    }
+    #addBtnMain {
+      background: #27ae60;
+    }
+    #addBtnMain:hover {
+      background: #219653;
+    }
+    #searchBtnMain {
+      background: #2980b9;
+    }
+    #searchBtnMain:hover {
+      background: #2471a3;
+    }
+    .form-container, .search-container {
+      display: none; /* hidden by default */
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 17px;
+      margin-top: 15px;
+      border-radius: 6px;
+    }
+    #message, #searchMessage {
+      margin-top: 25px;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error   { background: #f8d7da; color: #721c24; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+      color: #2c3e50;
+    }
+    .back-link {
+      display: block;
+      margin-top: 30px;
+      text-align: center;
+    }
+    .back-link a {
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+	.logo-link {
+  display: inline-block;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  text-decoration: none;
+}
+
+.logo-link:hover {
+  transform: scale(1.04);
+  opacity: 0.92;
+}
+  </style>
+</head>
+<body>
+
+<div class="back-link">
+  <a href="/" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">
+   Home
+</a>
+</div>
+
+<div class="header">
+  <a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
+  
+  <h1>Employee Personal Details</h1>
+</div>
+
+<div class="buttons">
+  <button id="searchBtnMain">Search details</button>
+  <button id="addBtnMain">Add details</button>
+</div>
+
+<!-- Search & Results Section -->
+<div id="searchContainer" class="search-container">
+  <h2>Search Personal Records</h2>
+  <div class="form-group">
+    <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
+    <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+  </div>
+  <button id="searchBtn" style="background:#3498db; color:white; padding:14px 40px; font-size:17px; border:none; border-radius:8px; cursor:pointer;">
+    Search
+  </button>
+  <div id="searchMessage" style="margin-top:25px; padding:14px; border-radius:8px; text-align:center;"></div>
+  <table style="width:100%; margin-top:30px; border-collapse:collapse;">
+    <thead>
+      <tr style="background:#ecf0f1;">
+        <th style="padding:12px; border:1px solid #dfe6e9;">Emp ID</th>
+        <th style="padding:12px; border:1px solid #dfe6e9;">Name</th>
+        <th style="padding:12px; border:1px solid #dfe6e9;">Email</th>
+        <th style="padding:12px; border:1px solid #dfe6e9;">Phone</th>
+        <th style="padding:12px; border:1px solid #dfe6e9;">Action</th>
+      </tr>
+    </thead>
+    <tbody id="personalBody"></tbody>
+  </table>
+</div>
+
+<!-- Add/Edit Form -->
+<div id="addFormContainer" class="form-container">
+<button type="button" id="clearBtn" style="position:fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 15px;background:#dc3545; color:white; margin-left:15px;">
+  Clear Form
+</button>
+  <h2 id="formTitle">Add Personal Details</h2>
+  <form id="personalForm">
+    <div class="form-group">
+      <label for="empid">Employee ID *</label>
+      <input type="number" id="empid" required>
+    </div>	
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" readonly disabled placeholder="Auto-filled"
+             style="background:#f0f0f0; color:#555; cursor:not-allowed; font-style:italic;">
+    </div>
+    <div class="form-group">
+      <label for="name">Name *</label>
+      <input type="text" id="name" required>
+    </div>
+    <div class="form-group">
+      <label for="gender">Gender</label>
+      <select id="gender">
+        <option value="">Select</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="dob">Date of Birth</label>
+      <input type="date" id="dob">
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone Number *</label>
+      <input type="tel" id="phone" required>
+    </div>
+    <div class="form-group">
+      <label for="marrital_status">Marital Status</label>
+      <select id="marrital_status">
+        <option value="">Select</option>
+        <option value="Single">Single</option>
+        <option value="Married">Married</option>
+        <option value="Divorced">Divorced</option>
+        <option value="Widowed">Widowed</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="blood_group">Blood Group</label>
+      <input type="text" id="blood_group" placeholder="e.g. O+">
+    </div>
+    <div class="form-group">
+      <label for="address1">Address Line 1 *</label>
+      <input type="text" id="address1" required>
+    </div>
+    <div class="form-group">
+      <label for="address2">Address Line 2</label>
+      <input type="text" id="address2">
+    </div>
+    <div class="form-group">
+      <label for="city">City</label>
+      <input type="text" id="city">
+    </div>
+    <div class="form-group">
+      <label for="state">State</label>
+      <input type="text" id="state">
+    </div>
+    <div class="form-group">
+      <label for="country">Country</label>
+      <input type="text" id="country">
+    </div>
+    <div class="form-group">
+      <label for="pincode">PIN Code</label>
+      <input type="text" id="pincode">
+    </div>
+	<button type="submit" class="action-btn" style="background:#27ae60; color:white;">Save Personal Details</button>
+  </form>
+  <div id="message"></div>
+</div>
+
+<script>
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+      background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      animation: slideIn 0.4s ease-out;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => toast.remove(), 500);
+    }, 6000);
+  }
+
+  // Show/hide sections on button click
+  document.getElementById('addBtnMain').addEventListener('click', () => {
+    document.getElementById('addFormContainer').style.display = 'block';
+    document.getElementById('searchContainer').style.display = 'none';
+  });
+
+  document.getElementById('searchBtnMain').addEventListener('click', () => {
+    document.getElementById('searchContainer').style.display = 'block';
+    document.getElementById('addFormContainer').style.display = 'none';
+  });
+
+  // Auto-fill email when empid is entered
+<!-- Inside the <script> tag of personal_details.html -->
+
+// When user leaves the empid field in ADD form
+document.getElementById('empid').addEventListener('blur', async () => {
+  const empid = document.getElementById('empid').value.trim();
+  
+  // Clear previous data & messages
+  clearPersonalFormFields();
+  document.getElementById('message').textContent = '';
+  document.querySelector('#personalForm button[type="submit"]').disabled = false;
+
+  if (!empid || isNaN(empid)) {
+    return;
+  }
+
+  try {
+    // Step 1: Check if employee exists in main employee table
+    const empResponse = await fetch(`/employee/${empid}`);
+    const empResult   = await empResponse.json();
+
+    if (empResult.status !== 'success' || !empResult.employee) {
+      showToast('This Employee ID does not exist in Employee Details', 'error');
+      document.querySelector('#personalForm button[type="submit"]').disabled = true;
+      return;
+    }
+
+    // Step 2: Check if personal details already exist
+    const personalResponse = await fetch(`/personal_record/${empid}`);
+    const personalResult   = await personalResponse.json();
+
+    if (personalResult.status === 'success' && personalResult.record) {
+      // ────────────────────────────────────────────────
+      //  ALREADY EXISTS → warn & DO NOT auto-fill
+      // ────────────────────────────────────────────────
+      showToast(`Personal details already exist for Emp ID ${empid}. Use Search and Edit instead.`, 'error');
+	        
+      // Optional: show more visible warning
+      document.getElementById('message').textContent = 
+        `→ Personal record already exists for this employee. Go to Search → Edit.`;
+      document.getElementById('message').className = 'error';
+
+      // Disable save to prevent accidental overwrite
+      document.querySelector('#personalForm button[type="submit"]').disabled = true;
+
+      // You can also highlight the empid field
+      document.getElementById('empid').style.borderColor = '#e74c3c';
+      
+      return;
+    }
+
+    // ────────────────────────────────────────────────
+    //  No personal record yet → safe to add → auto-fill name & email
+    // ────────────────────────────────────────────────
+    document.getElementById('name').value  = empResult.employee.first_name + ' ' + (empResult.employee.last_name || '');
+    document.getElementById('email').value = empResult.employee.email || '';
+
+    showToast('Employee found — you can now add personal details', 'success');
+
+  } catch (err) {
+    showToast('Failed to validate Employee ID', 'error');
+    console.error(err);
+  }
+});
+
+function clearPersonalFormFields() {
+  const fields = [
+    'name', 'gender', 'dob', 'phone', 'email', 'marrital_status',
+    'blood_group', 'address1', 'address2', 'city', 'state', 'country', 'pincode'
+  ];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+  // Form submit - save personal details
+  document.getElementById('personalForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      empid: parseInt(document.getElementById('empid').value),
+      Name: document.getElementById('name').value.trim(),
+      Gender: document.getElementById('gender').value || null,
+      dob: document.getElementById('dob').value || null,
+      phone: document.getElementById('phone').value.trim(),
+      email: document.getElementById('email').value.trim() || null,
+      marrital_status: document.getElementById('marrital_status').value || null,
+      blood_group: document.getElementById('blood_group').value.trim() || null,
+      Address1: document.getElementById('address1').value.trim(),
+      Address2: document.getElementById('address2').value.trim() || null,
+      City: document.getElementById('city').value.trim() || null,
+      State: document.getElementById('state').value.trim() || null,
+      Country: document.getElementById('country').value.trim() || null,
+      PINCode: document.getElementById('pincode').value.trim() || null
+    };
+
+    try {
+      const response = await fetch('/save_personal_details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      showToast(result.message, result.status === 'success' ? 'success' : 'error');
+
+      if (result.status === 'success') {
+        // Optional: reset form after successful save
+        // document.getElementById('personalForm').reset();
+      }
+    } catch (err) {
+      showToast('Failed to connect to server', 'error');
+    }
+  });
+
+  // Search button - fetch and display personal records
+  document.getElementById('searchBtn').addEventListener('click', async () => {
+    const empidFilter = document.getElementById('searchEmpId').value.trim();
+    const tbody = document.getElementById('personalBody');
+    const msg = document.getElementById('searchMessage');
+    tbody.innerHTML = '';
+    msg.textContent = '';
+
+    try {
+      let url = '/search_personal_details';
+      if (empidFilter) {
+        url += `?empid=${encodeURIComponent(empidFilter)}`;
+      }
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        if (result.personal.length === 0) {
+          msg.textContent = 'No personal records found';
+          msg.className = 'error';
+          return;
+        }
+
+        result.personal.forEach(rec => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${rec.empid || ''}</td>
+            <td>${rec.Name || ''}</td>
+            <td>${rec.email || ''}</td>
+            <td>${rec.phone || ''}</td>
+            <td>
+  <a href="/static/edit_personal_details.html?empid=${rec.empid}"
+     style="background:#27ae60; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; display:inline-block; cursor:pointer;">
+    Edit
+  </a>
+</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        msg.textContent = `Found ${result.personal.length} record(s)`;
+        msg.className = 'success';
+      } else {
+        msg.textContent = result.message || 'Error loading records';
+        msg.className = 'error';
+      }
+    } catch (err) {
+      msg.textContent = 'Failed to connect';
+      msg.className = 'error';
+    }
+  });
+
+  // Clear Form button functionality
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('personalForm').reset();
+  showToast('Form cleared successfully', 'success');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pay Employee - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    button {
+      padding: 14px 40px;
+      font-size: 17px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    #calculateBtn, #submitBtn {
+      background: #3498db;
+    }
+    #calculateBtn:hover, #submitBtn:hover {
+      background: #2980b9;
+    }
+    #payBtn {
+      background: #27ae60;
+      display: none; /* Hidden until submit */
+    }
+    #payBtn:hover {
+      background: #219653;
+    }
+    #reviewSection {
+      display: none;
+      background: #e8f4f8;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .calculation-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #ddd;
+    }
+    .calculation-row:last-child {
+      border-bottom: none;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+    }
+    .back-link {
+      display: block;
+      margin-top: 40px;
+      text-align: center;
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="/" style="
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background: #2980b9;
+    color: white;
+    font-weight: bold;
+    text-decoration: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+  ">Home</a>
+
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99" style="display: block; margin: 20px auto;">
+
+  <h1>Employee Pay</h1>
+
+  <div class="container">
+    <h2>Enter Pay Details</h2>
+
+    <form id="payForm">
+      <div class="form-group">
+        <label for="empid">Employee ID *</label>
+        <input type="number" id="empid" required placeholder="Enter Employee ID">
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name (Auto-filled)</label>
+        <input type="text" id="name" readonly>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email (Auto-filled)</label>
+        <input type="email" id="email" readonly>
+      </div>
+
+      <div class="form-group">
+        <label for="monthlySalary">Monthly Salary (Auto-filled, INR)</label>
+        <input type="number" id="monthlySalary" readonly step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label for="payTerm">Pay Term *</label>
+        <select id="payTerm" required>
+          <option value="">Select Pay Term</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="bi-weekly">Bi-Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+
+      <div style="text-align: center; margin-top: 20px;">
+        <button type="button" id="calculateBtn">Calculate Pay</button>
+      </div>
+    </form>
+
+    <!-- Review Section (Hidden initially) -->
+    <div id="reviewSection">
+      <h3>Pay Calculation Review</h3>
+      <div id="calculationDisplay"></div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button type="button" id="submitBtn">Submit & Lock Details</button>
+      </div>
+    </div>
+
+    <!-- Pay Section (Hidden until locked) -->
+    <div id="paySection" style="display: none; text-align: center; margin-top: 20px;">
+      <h3>Ready to Pay</h3>
+      <p>Details are locked. Click below to process payment.</p>
+      <button id="payBtn">Pay Now</button>
+    </div>
+
+    <div id="message" style="margin-top: 20px; padding: 12px; border-radius: 6px; text-align: center; display: none;"></div>
+  </div>
+
+  <a href="/" class="back-link">← Back to Home</a>
+
+  <script>
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+        background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideIn 0.4s ease-out;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    function showMessage(text, type = 'success') {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.style.display = 'block';
+      msg.className = type;
+      setTimeout(() => { msg.style.display = 'none'; }, 5000);
+    }
+
+    // Auto-fill employee details on empid blur
+    document.getElementById('empid').addEventListener('blur', async () => {
+      const empid = document.getElementById('empid').value.trim();
+      if (!empid || isNaN(empid)) return;
+
+      try {
+        const response = await fetch(`/employee/${empid}`);
+        const result = await response.json();
+        if (result.status === 'success' && result.employee) {
+          document.getElementById('name').value = `${result.employee.first_name || ''} ${result.employee.last_name || ''}`.trim();
+          document.getElementById('email').value = result.employee.email || '';
+          document.getElementById('monthlySalary').value = result.employee.salary || 0;
+          showToast('Employee details loaded');
+        } else {
+          showToast('Employee not found', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to fetch employee', 'error');
+      }
+    });
+
+    // Calculate pay based on term
+    function calculatePay(monthlySalary, payTerm) {
+      let payAmount = 0;
+      let description = '';
+      switch (payTerm) {
+        case 'daily':
+          payAmount = monthlySalary / 30;
+          description = 'Monthly / 30 days';
+          break;
+        case 'weekly':
+          payAmount = monthlySalary / 4.33; // Approx. weeks in a month
+          description = 'Monthly / 4.33 weeks';
+          break;
+        case 'bi-weekly':
+          payAmount = monthlySalary / 2;
+          description = 'Monthly / 2';
+          break;
+        case 'monthly':
+          payAmount = monthlySalary;
+          description = 'Full monthly salary';
+          break;
+        default:
+          return { amount: 0, desc: 'Invalid term' };
+      }
+      return { amount: parseFloat(payAmount.toFixed(2)), desc: description };
+    }
+
+    // Calculate button handler
+    document.getElementById('calculateBtn').addEventListener('click', () => {
+      const empid = document.getElementById('empid').value;
+      const payTerm = document.getElementById('payTerm').value;
+      const monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 0;
+
+      if (!empid || !payTerm || monthlySalary <= 0) {
+        showMessage('Please enter Employee ID, select Pay Term, and ensure salary is loaded', 'error');
+        return;
+      }
+
+      const calc = calculatePay(monthlySalary, payTerm);
+      document.getElementById('calculationDisplay').innerHTML = `
+        <div class="calculation-row">
+          <span>Base Monthly Salary:</span>
+          <span>₹${monthlySalary.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="calculation-row">
+          <span>Pay Term:</span>
+          <span>${payTerm.charAt(0).toUpperCase() + payTerm.slice(1).replace('-', ' ')}</span>
+        </div>
+        <div class="calculation-row">
+          <span>Calculation:</span>
+          <span>${calc.desc}</span>
+        </div>
+        <div class="calculation-row">
+          <span>Pay Amount:</span>
+          <span>₹${calc.amount.toLocaleString('en-IN')}</span>
+        </div>
+      `;
+      document.getElementById('reviewSection').style.display = 'block';
+      showMessage(`Calculated pay: ₹${calc.amount.toLocaleString('en-IN')}`);
+    });
+
+    // Submit button: Lock details (hide form, show pay button)
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      document.getElementById('payForm').style.display = 'none';
+      document.getElementById('reviewSection').innerHTML = `
+        <h3>Locked Pay Details</h3>
+        <div id="calculationDisplay"></div> <!-- Already populated -->
+      `;
+      document.getElementById('paySection').style.display = 'block';
+      showToast('Details locked. Ready for payment.');
+    });
+
+    // Pay button: Placeholder (backend in next step)
+    document.getElementById('payBtn').addEventListener('click', () => {
+      // TODO: Call backend /process_payment
+      showToast('Payment processed! (Backend integration next)', 'success');
+    });
+  </script>
+
+</body>
+</html>

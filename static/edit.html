@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Employee</title>
+  <style>
+  @keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 2.8em;
+      color: #2c3e50;
+      font-weight: bold;
+    }
+    .header .subtitle {
+      margin: 0;
+      font-size: 1.8em;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+	h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      background: #f39c12;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    button:hover {
+      background: #e67e22;
+    }
+    #message {
+      margin-top: 25px;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error   { background: #f8d7da; color: #721c24; }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<div class="back-link">
+  <a href="/"style="
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">Home</a>
+</div>
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000; max-width: 350px;"></div>
+<div class="header">
+    <h1>Pay Day</h1>
+    <p class="subtitle">Employee Management</p>
+
+  </div>
+  	
+	<h1>Edit Employee</h1>
+  
+  <form id="editForm">
+    <input type="hidden" id="empid" name="empid">
+
+    <div class="form-group">
+      <label for="first_name">First Name *</label>
+      <input type="text" id="first_name" required>
+    </div>
+
+    <div class="form-group">
+      <label for="last_name">Last Name *</label>
+      <input type="text" id="last_name" required>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email">
+    </div>
+
+    <div class="form-group">
+      <label for="hire_date">Hire Date</label>
+      <input type="date" id="hire_date">
+    </div>
+	
+	<div class="form-group">
+	<label for="grade">Grade *</label>
+	<select id="grade" required>
+    <option value="">Select Grade</option>
+    <option value="E1">E1</option>
+    <option value="E2">E2</option>
+    <option value="L1">L1</option>
+    <option value="L2">L2</option>
+    <option value="M1">M1</option>
+    <option value="M2">M2</option>
+    <option value="VP">VP</option>
+    <option value="CEO">CEO</option>
+	</select>
+	</div>
+
+    <div class="form-group">
+      <label for="salary">Salary</label>
+      <input type="number" id="salary" step="0.01" min="0">
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="is_active"> Active
+      </label>
+    </div>
+
+    <button type="submit">Update Employee</button>
+  </form>
+
+  <div id="message"></div>
+
+  <a href="/employee_details" class="back-link">← Back to Main Page</a>
+
+  <script>
+  function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    padding: 16px 24px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideIn 0.4s ease-out;
+  `;
+
+  if (type === 'success') {
+    toast.style.background = '#27ae60';
+  } else {
+    toast.style.background = '#e74c3c';
+  }
+
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Auto-remove after 4 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 500);
+  }, 5000);
+}
+    // Get employee ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const empid = urlParams.get('id');
+
+    if (!empid) {
+      document.getElementById('message').textContent = 'No employee ID provided';
+      document.getElementById('message').className = 'error';
+    } else {
+      // Fetch current employee data
+      fetch(`/employee/${empid}`)
+        .then(response => response.json())
+        .then(result => {
+          if (result.status === 'success' && result.employee) {
+            const emp = result.employee;
+            document.getElementById('empid').value = emp.empid;
+            document.getElementById('first_name').value = emp.first_name || '';
+            document.getElementById('last_name').value = emp.last_name || '';
+            document.getElementById('email').value = emp.email || '';
+            document.getElementById('hire_date').value = emp.hire_date || '';
+			document.getElementById('grade').value = emp.grade || '';
+            document.getElementById('salary').value = emp.salary || '';			
+            document.getElementById('is_active').checked = emp.is_active === 1;
+          } else {
+            document.getElementById('message').textContent = result.message || 'Employee not found';
+            document.getElementById('message').className = 'error';
+          }
+        })
+        .catch(err => {
+          document.getElementById('message').textContent = 'Failed to load employee';
+          document.getElementById('message').className = 'error';
+        });
+    }
+
+    // Update form submit
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        empid: document.getElementById('empid').value,
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim() || null,
+        hire_date: document.getElementById('hire_date').value || null,
+		grade:	document.getElementById('grade').value || null,
+        salary: document.getElementById('salary').value ? Number(document.getElementById('salary').value) : null,
+        is_active: document.getElementById('is_active').checked ? 1 : 0
+      };
+
+      try {
+        const response = await fetch('/update_employee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        const msg = document.getElementById('message');
+		showToast(result.message, result.status === 'success' ? 'success' : 'error');
+      } catch (err) {
+        document.getElementById('message').textContent = 'Failed to update';
+        document.getElementById('message').className = 'error';
+      }
+    });
+  </script>
+
+</body>
+</html>

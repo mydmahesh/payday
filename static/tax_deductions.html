@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tax Deductions - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1, h2, h3 {
+      text-align: center;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    button {
+      padding: 14px 40px;
+      font-size: 17px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    #saveBtn {
+      background: #e67e22;
+    }
+    #saveBtn:hover {
+      background: #d35400;
+    }
+    #searchBtn {
+      background: #3498db;
+    }
+    #searchBtn:hover {
+      background: #2980b9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+    }
+    .edit-btn {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .back-link {
+      display: block;
+      margin-top: 40px;
+      text-align: center;
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Tax Deductions</h1>
+
+  <!-- Search & Results Section -->
+  <div style="background: white; padding: 40px; border-radius: 12px; margin-top: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    <h2>Search Tax Deduction Records</h2>
+
+    <div class="form-group">
+      <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
+      <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+    </div>
+
+    <button id="searchBtn">Search</button>
+
+    <div id="searchMessage" style="margin-top:25px; padding:14px; border-radius:8px; text-align:center;"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Emp ID</th>
+          <th>Name</th>
+          <th>Tax Deduction</th>
+          <th>Other Deduction</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="taxBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Add/Edit Form -->
+  <div style="background: white; padding: 40px; border-radius: 12px; margin-top: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    <h2 id="formTitle">Add Tax Deduction Details</h2>
+
+    <form id="taxForm">
+      <div class="form-group">
+        <label for="empid">Employee ID *</label>
+        <input type="number" id="empid" required placeholder="Enter Employee ID">
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" readonly disabled placeholder="Auto-filled">
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" readonly disabled placeholder="Auto-filled" style="background:#f0f0f0; color:#555; cursor:not-allowed;">
+      </div>
+
+      <!-- Tax-specific fields will be added in next step -->
+
+      <div style="margin-top: 40px; text-align: center;">
+        <button type="submit" id="saveBtn" style="background:#e67e22; color:white; padding:16px 50px; font-size:18px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+          Save Tax Deduction Details
+        </button>
+      </div>
+    </form>
+
+    <div id="message" style="margin-top:30px; padding:14px; border-radius:8px; text-align:center;"></div>
+  </div>
+
+  <div class="back-link">
+    <a href="/">← Back to Home</a>
+  </div>
+
+  <script>
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+        background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideIn 0.4s ease-out;
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    // Auto-fill name & email when empid is entered
+    document.getElementById('empid').addEventListener('blur', async () => {
+      const empid = document.getElementById('empid').value.trim();
+
+      // Clear name & email first
+      document.getElementById('name').value = '';
+      document.getElementById('email').value = '';
+
+      if (!empid || isNaN(empid)) return;
+
+      try {
+        const response = await fetch(`/employee/${empid}`);
+        const result = await response.json();
+
+        if (result.status === 'success' && result.employee) {
+          document.getElementById('name').value = result.employee.name || '';
+          document.getElementById('email').value = result.employee.email || '';
+          showToast('Employee details auto-filled', 'success');
+        } else {
+          showToast(result.message || 'Employee not found', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to fetch employee details', 'error');
+      }
+    });
+
+    // Placeholder for form submit (we'll expand next)
+    document.getElementById('taxForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showToast('Saving tax details...', 'success');
+      // Full logic coming next
+    });
+  </script>
+
+</body>
+</html>

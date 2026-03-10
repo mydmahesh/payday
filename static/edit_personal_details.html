@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Personal Details - Pay Day</title>
+  <style>
+    /* Reuse same styles as personal_details.html */
+    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
+    .header { text-align: center; margin-bottom: 40px; }
+    .header h1 { margin: 0; font-size: 2.8em; color: #2c3e50; font-weight: bold; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; }
+    input, select { width: 100%; padding: 12px; box-sizing: border-box; font-size: 16px; border: 1px solid #bdc3c7; border-radius: 5px; }
+    input[readonly], input[disabled] { background: #f0f0f0; color: #555; cursor: not-allowed; }
+    .action-btn { width: 100%; padding: 14px; font-size: 17px; margin-top: 15px; border-radius: 6px; background:#e67e22; color:white; border:none; cursor:pointer; }
+    #message { margin-top: 25px; padding: 12px; border-radius: 6px; text-align: center; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+<div class="back-link">
+  <a href="/personal_details" style="color:#2980b9; text-decoration:none; font-weight:bold;">← Back to Personal Details</a>
+</div>
+<a href="/" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">
+   Home
+</a>
+
+<div class="header">
+  <h1>Edit Personal Details</h1>
+</div>
+
+<div id="editFormContainer" class="form-container">
+  <form id="personalForm">
+    <div class="form-group">
+      <label for="empid">Employee ID</label>
+      <input type="number" id="empid" readonly>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" readonly disabled placeholder="Auto-filled">
+    </div>
+    <div class="form-group">
+      <label for="name">Name *</label>
+      <input type="text" id="name" required>
+    </div>
+    <div class="form-group">
+      <label for="gender">Gender</label>
+      <select id="gender">
+        <option value="">Select</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="dob">Date of Birth</label>
+      <input type="date" id="dob">
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone Number *</label>
+      <input type="tel" id="phone" required>
+    </div>
+    <div class="form-group">
+      <label for="marrital_status">Marital Status</label>
+      <select id="marrital_status">
+        <option value="">Select</option>
+        <option value="Single">Single</option>
+        <option value="Married">Married</option>
+        <option value="Divorced">Divorced</option>
+        <option value="Widowed">Widowed</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="blood_group">Blood Group</label>
+      <input type="text" id="blood_group" placeholder="e.g. O+">
+    </div>
+    <div class="form-group">
+      <label for="address1">Address Line 1 *</label>
+      <input type="text" id="address1" required>
+    </div>
+    <div class="form-group">
+      <label for="address2">Address Line 2</label>
+      <input type="text" id="address2">
+    </div>
+    <div class="form-group">
+      <label for="city">City</label>
+      <input type="text" id="city">
+    </div>
+    <div class="form-group">
+      <label for="state">State</label>
+      <input type="text" id="state">
+    </div>
+    <div class="form-group">
+      <label for="country">Country</label>
+      <input type="text" id="country">
+    </div>
+    <div class="form-group">
+      <label for="pincode">PIN Code</label>
+      <input type="text" id="pincode">
+    </div>
+    <button type="submit" class="action-btn">Update Personal Details</button>
+  </form>
+  <div id="message"></div>
+</div>
+
+<script>
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+      background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      animation: slideIn 0.4s ease-out;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => toast.remove(), 500);
+    }, 5000);
+  }
+
+  // Load record based on empid from URL
+  window.addEventListener('load', async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const empid = urlParams.get('empid');
+
+    if (!empid) {
+      showToast('No Employee ID provided in URL', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/personal_record/${empid}`);
+      const result = await response.json();
+
+      if (result.status === 'success' && result.record) {
+        const rec = result.record;
+
+        document.getElementById('empid').value = rec.empid || '';
+        document.getElementById('name').value = rec.Name || '';
+        document.getElementById('gender').value = rec.Gender || '';
+        document.getElementById('dob').value = rec.dob || '';
+        document.getElementById('phone').value = rec.phone || '';
+        document.getElementById('email').value = rec.email || '';
+        document.getElementById('marrital_status').value = rec.marrital_status || '';
+        document.getElementById('blood_group').value = rec.blood_group || '';
+        document.getElementById('address1').value = rec.Address1 || '';
+        document.getElementById('address2').value = rec.Address2 || '';
+        document.getElementById('city').value = rec.City || '';
+        document.getElementById('state').value = rec.State || '';
+        document.getElementById('country').value = rec.Country || '';
+        document.getElementById('pincode').value = rec.PINCode || '';
+
+        showToast('Record loaded for editing', 'success');
+      } else {
+        showToast(result.message || 'Record not found', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to load record', 'error');
+    }
+  });
+
+  // Form submit - update personal details
+  document.getElementById('personalForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+      empid: parseInt(document.getElementById('empid').value),
+      Name: document.getElementById('name').value.trim(),
+      Gender: document.getElementById('gender').value || null,
+      dob: document.getElementById('dob').value || null,
+      phone: document.getElementById('phone').value.trim(),
+      email: document.getElementById('email').value.trim() || null,
+      marrital_status: document.getElementById('marrital_status').value || null,
+      blood_group: document.getElementById('blood_group').value.trim() || null,
+      Address1: document.getElementById('address1').value.trim(),
+      Address2: document.getElementById('address2').value.trim() || null,
+      City: document.getElementById('city').value.trim() || null,
+      State: document.getElementById('state').value.trim() || null,
+      Country: document.getElementById('country').value.trim() || null,
+      PINCode: document.getElementById('pincode').value.trim() || null
+    };
+
+    try {
+      const response = await fetch('/save_personal_details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      showToast(result.message, result.status === 'success' ? 'success' : 'error');
+
+    } catch (err) {
+      showToast('Failed to connect to server', 'error');
+    }
+  });
+</script>
+</body>
+</html>

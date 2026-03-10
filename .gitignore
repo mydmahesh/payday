@@ -1,0 +1,30 @@
+# Python / Flask
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.env
+
+# Database (very important!)
+*.db
+*.sqlite3
+*.sqlite
+
+# IDE / Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS / Windows junk
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+temp/

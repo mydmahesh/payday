@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bank Details - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+	.header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      text-align: center;
+      color: #333;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    .buttons {
+      text-align: center;
+      margin: 30px 0;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 17px;
+      margin: 0 15px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      transition: background 0.2s;
+    }
+    #addBtnMain { background: #27ae60; }
+    #addBtnMain:hover { background: #219653; }
+    #searchBtnMain { background: #2980b9; }
+    #searchBtnMain:hover { background: #2471a3; }
+    .form-container, .search-container {
+      display: none;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    #saveBtn {
+      background: #e67e22;
+      padding: 14px 50px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #saveBtn:hover { background: #d35400; }
+    #searchBankBtn {
+      background: #3498db;
+      padding: 14px 40px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+    }
+    .edit-btn {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .warning {
+      color: #c0392b;
+      font-weight: bold;
+      margin: 15px 0;
+      padding: 12px;
+      background: #fce8e6;
+      border-radius: 6px;
+    }
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    .logo-link:hover {
+      transform: scale(1.04);
+    }
+  </style>
+</head>
+<body>
+
+<a href="/" style="position:fixed; top:20px; left:20px; padding:10px 20px; background:#2980b9; color:white; font-weight:bold; text-decoration:none; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:1000;">
+  Home
+</a>
+
+<div class = "header">
+  <a href="/" class="logo-link">
+    <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+  </a>
+</div>
+
+<h1>Bank Details</h1>
+
+<div class="buttons">
+  <button id="searchBtnMain">Search Bank Details</button>
+  <button id="addBtnMain">Add Bank Details</button>
+</div>
+
+<!-- Search Section -->
+<div id="searchContainer" class="search-container">
+  <h2>Search Bank Records</h2>
+  <div class="form-group">
+    <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
+    <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+  </div>
+  <button id="searchBankBtn">Search</button>
+
+  <div id="bankMessage" style="margin:25px 0; padding:14px; border-radius:8px; text-align:center;"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Emp ID</th>
+        <th>Bank Name</th>
+        <th>Account No</th>
+        <th>IFSC</th>
+        <th>Holder</th>
+        <th>Branch</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="bankResultsBody"></tbody>
+  </table>
+</div>
+
+<!-- Add / Edit Form -->
+<div id="addFormContainer" class="form-container">
+  <h2 id="formTitle">Add Bank Details</h2>
+
+  <form id="bankForm">
+    <input type="hidden" id="record_id" name="record_id">
+
+    <div class="form-group">
+      <label for="empid">Employee ID *</label>
+      <input type="number" id="empid" required placeholder="Enter Employee ID">
+    </div>
+
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" id="name" readonly disabled placeholder="Auto-filled on valid Emp ID">
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" readonly disabled placeholder="Auto-filled">
+    </div>
+
+    <div class="form-group">
+      <label for="bank_name">Bank Name *</label>
+      <input type="text" id="bank_name" required>
+    </div>
+
+    <div class="form-group">
+      <label for="account_number">Account Number *</label>
+      <input type="text" id="account_number" required>
+    </div>
+
+    <div class="form-group">
+      <label for="ifsc_code">IFSC Code *</label>
+      <input type="text" id="ifsc_code" required placeholder="e.g. SBIN0001234">
+    </div>
+
+    <div class="form-group">
+      <label for="account_holder">Account Holder Name *</label>
+      <input type="text" id="account_holder" required>
+    </div>
+
+    <div class="form-group">
+      <label for="branch_name">Branch Name</label>
+      <input type="text" id="branch_name">
+    </div>
+
+    <div id="formWarning" class="warning" style="display:none;"></div>
+
+    <div style="text-align:center; margin-top:30px;">
+      <button type="submit" id="saveBtn">Save Bank Details</button>
+    </div>
+  </form>
+
+  <div id="message" style="margin-top:25px; padding:14px; border-radius:8px; text-align:center;"></div>
+</div>
+
+
+<script>
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed; top: 20px; right: 20px; z-index: 1000;
+    padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+    background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 500);
+  }, 3000);
+}
+
+function clearForm() {
+  document.getElementById('bankForm').reset();
+  document.getElementById('record_id').value = '';
+  document.getElementById('formTitle').textContent = 'Add Bank Details';
+  document.getElementById('saveBtn').textContent = 'Save Bank Details';
+  document.getElementById('formWarning').style.display = 'none';
+  document.getElementById('saveBtn').disabled = false;
+}
+
+// ────────────────────────────────────────────────
+// Check Emp ID when user leaves the field (ADD mode only)
+// ────────────────────────────────────────────────
+document.getElementById('empid').addEventListener('blur', async () => {
+  const empid = document.getElementById('empid').value.trim();
+  const recordIdValue = document.getElementById('record_id').value?.trim();
+  const warningEl = document.getElementById('formWarning');
+  const saveBtn = document.getElementById('saveBtn');
+
+  // Reset
+  document.getElementById('name').value = '';
+  document.getElementById('email').value = '';
+  warningEl.style.display = 'none';
+  saveBtn.disabled = false;
+
+  if (!empid || isNaN(empid)) return;
+
+  try {
+    // 1. Check if employee exists
+    const empRes = await fetch(`/employee/${empid}`);
+    const empData = await empRes.json();
+
+    if (empData.status !== 'success' || !empData.employee) {
+      showToast('Employee ID not found in system', 'error');
+      saveBtn.disabled = true;
+      return;
+    }
+
+    // Auto-fill name & email
+    document.getElementById('name').value  = (empData.employee.first_name || '') + ' ' + (empData.employee.last_name || '');
+    document.getElementById('email').value = empData.employee.email || '';
+
+    // 2. Check if bank record already exists
+    const bankRes = await fetch(`/bank_by_empid/${empid}`);
+    const bankData = await bankRes.json();
+
+    if (bankData.status === 'success' && bankData.record) {
+      showToast(`Bank details already exist for this employee`, 'error');
+      warningEl.textContent = '→ This employee already has bank details. Please use Search → Edit instead.';
+      warningEl.style.display = 'block';
+      saveBtn.disabled = true;
+      return;
+    }
+
+    showToast('Employee found – you can add bank details now', 'success');
+
+  } catch (err) {
+    showToast('Error validating Employee ID', 'error');
+    console.error(err);
+  }
+});
+
+// Show/hide sections
+document.getElementById('addBtnMain').addEventListener('click', () => {
+  document.getElementById('addFormContainer').style.display = 'block';
+  document.getElementById('searchContainer').style.display = 'none';
+  clearForm();
+});
+
+document.getElementById('searchBtnMain').addEventListener('click', () => {
+  document.getElementById('searchContainer').style.display = 'block';
+  document.getElementById('addFormContainer').style.display = 'none';
+});
+
+// Search
+document.getElementById('searchBankBtn').addEventListener('click', async () => {
+  const empidFilter = document.getElementById('searchEmpId').value.trim();
+  const tbody = document.getElementById('bankResultsBody');
+  const msg = document.getElementById('bankMessage');
+
+  tbody.innerHTML = '';
+  msg.textContent = '';
+
+  try {
+    let url = '/search_bank_details';
+    if (empidFilter) url += `?empid=${encodeURIComponent(empidFilter)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== 'success') {
+      msg.textContent = data.message || 'Error';
+      msg.style.background = '#f8d7da';
+      msg.style.color = '#721c24';
+      return;
+    }
+
+    if (data.bank_details.length === 0) {
+      msg.textContent = 'No records found';
+      msg.style.background = '#f8d7da';
+      msg.style.color = '#721c24';
+      return;
+    }
+
+    data.bank_details.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.id}</td>
+        <td>${r.empid}</td>
+        <td>${r.bank_name || ''}</td>
+        <td>${r.account_number || ''}</td>
+        <td>${r.ifsc_code || ''}</td>
+        <td>${r.account_holder || ''}</td>
+        <td>${r.branch_name || ''}</td>
+        <td>
+          <a href="/static/edit_bank_details.html?record_id=${r.id}"
+             class="edit-btn">Edit</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    msg.textContent = `Found ${data.bank_details.length} record(s)`;
+    msg.style.background = '#d4edda';
+    msg.style.color = '#155724';
+
+  } catch (err) {
+    msg.textContent = 'Connection error';
+    msg.style.background = '#f8d7da';
+    msg.style.color = '#721c24';
+  }
+});
+
+// Save (Add or Update)
+document.getElementById('bankForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const data = {
+    record_id:      document.getElementById('record_id').value || null,
+    empid:          parseInt(document.getElementById('empid').value),
+    bank_name:      document.getElementById('bank_name').value.trim(),
+    account_number: document.getElementById('account_number').value.trim(),
+    ifsc_code:      document.getElementById('ifsc_code').value.trim(),
+    account_holder: document.getElementById('account_holder').value.trim(),
+    branch_name:    document.getElementById('branch_name').value.trim() || null
+  };
+
+  try {
+    const res = await fetch('/save_bank_details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    showToast(result.message, result.status === 'success' ? 'success' : 'error');
+
+    if (result.status === 'success') {
+      clearForm();
+    }
+
+  } catch (err) {
+    showToast('Failed to save – server error', 'error');
+  }
+});
+</script>
+</body>
+</html>

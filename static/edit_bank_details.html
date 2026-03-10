@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Bank Details - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      margin: 0;
+    }
+    .form-group {
+      margin-bottom: 22px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #34495e;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 6px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    .action-btn {
+      background: #e67e22;
+      color: white;
+      border: none;
+      padding: 14px 50px;
+      font-size: 17px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    .action-btn:hover {
+      background: #d35400;
+    }
+    #message, .warning {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error   { background: #f8d7da; color: #721c24; }
+    .warning { background: #fff3cd; color: #856404; }
+    .back-link {
+      display: inline-block;
+      margin: 20px 0;
+      color: #2980b9;
+      font-weight: bold;
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    .logo-link:hover {
+      transform: scale(1.04);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Fixed Home button -->
+<a href="/" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">
+  Home
+</a>
+
+<div class = "header">
+  <a href="/" class="logo-link">
+    <img src="images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+  </a>
+</div>
+<div class="back-link">
+  <a href="/bank-details" style="color:#2980b9; text-decoration:none; font-weight:bold;">← Back to Bank Menu</a>
+</div>
+
+<div class="header">
+  <h1>Edit Bank Details</h1>
+</div>
+
+<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); max-width: 700px; margin: 0 auto;">
+  <form id="bankForm">
+    <input type="hidden" id="record_id">
+
+    <div class="form-group">
+      <label for="empid">Employee ID</label>
+      <input type="number" id="empid" readonly>
+    </div>
+
+    <div class="form-group">
+      <label for="name">Employee Name</label>
+      <input type="text" id="name" readonly>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" readonly>
+    </div>
+
+    <div class="form-group">
+      <label for="bank_name">Bank Name *</label>
+      <input type="text" id="bank_name" required>
+    </div>
+
+    <div class="form-group">
+      <label for="account_number">Account Number *</label>
+      <input type="text" id="account_number" required>
+    </div>
+
+    <div class="form-group">
+      <label for="ifsc_code">IFSC Code *</label>
+      <input type="text" id="ifsc_code" required placeholder="e.g. SBIN0001234">
+    </div>
+
+    <div class="form-group">
+      <label for="account_holder">Account Holder Name *</label>
+      <input type="text" id="account_holder" required>
+    </div>
+
+    <div class="form-group">
+      <label for="branch_name">Branch Name</label>
+      <input type="text" id="branch_name">
+    </div>
+
+    <div style="text-align: center;">
+      <button type="submit" class="action-btn">Update Bank Details</button>
+    </div>
+  </form>
+
+  <div id="message"></div>
+</div>
+
+<script>
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed; top: 20px; right: 20px; z-index: 1000;
+    padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+    background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 500);
+  }, 4500);
+}
+
+// Load record when page opens
+window.addEventListener('load', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const recordId = urlParams.get('record_id');
+
+  if (!recordId) {
+    showToast('No record ID provided in URL', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/bank_record/${recordId}`);
+    const result = await response.json();
+
+    if (result.status === 'success' && result.record) {
+      const r = result.record;
+
+      document.getElementById('record_id').value     = r.id || '';
+      document.getElementById('empid').value         = r.empid || '';
+      document.getElementById('name').value          = r.name || '';          // assuming backend sends it
+      document.getElementById('email').value         = r.email || '';
+      document.getElementById('bank_name').value     = r.bank_name || '';
+      document.getElementById('account_number').value = r.account_number || '';
+      document.getElementById('ifsc_code').value     = r.ifsc_code || '';
+      document.getElementById('account_holder').value = r.account_holder || '';
+      document.getElementById('branch_name').value   = r.branch_name || '';
+
+      showToast('Bank record loaded successfully', 'success');
+    } else {
+      showToast(result.message || 'Record not found', 'error');
+    }
+  } catch (err) {
+    showToast('Failed to load bank record', 'error');
+    console.error(err);
+  }
+});
+
+// Form submit → update
+document.getElementById('bankForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {
+    record_id:      document.getElementById('record_id').value,
+    empid:          parseInt(document.getElementById('empid').value),
+    bank_name:      document.getElementById('bank_name').value.trim(),
+    account_number: document.getElementById('account_number').value.trim(),
+    ifsc_code:      document.getElementById('ifsc_code').value.trim(),
+    account_holder: document.getElementById('account_holder').value.trim(),
+    branch_name:    document.getElementById('branch_name').value.trim() || null
+  };
+
+  try {
+    const response = await fetch('/save_bank_details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    showToast(result.message, result.status === 'success' ? 'success' : 'error');
+
+  } catch (err) {
+    showToast('Failed to update – server connection error', 'error');
+  }
+});
+</script>
+</body>
+</html>

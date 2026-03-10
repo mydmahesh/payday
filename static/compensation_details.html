@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Compensation Details - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1, h2, h3 {
+      text-align: center;
+      color: #333;
+    }
+    .back-link {
+      display: block;
+      margin: 20px 0;
+      text-align: center;
+      font-size: 1.1em;
+    }
+    .back-link a {
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 0.95em;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    button {
+      padding: 14px 40px;
+      font-size: 1.1em;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+    }
+    #saveBtn {
+      background: #e67e22;
+    }
+    #saveBtn:hover {
+      background: #d35400;
+    }
+    #searchBtn {
+      background: #3498db;
+    }
+    #searchBtn:hover {
+      background: #2980b9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: right;
+    }
+    th {
+      background: #ecf0f1;
+      text-align: center;
+    }
+    .edit-btn {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .section h3 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    .summary {
+      font-size: 1.3em;
+      font-weight: bold;
+      text-align: center;
+      margin: 30px 0;
+      padding: 15px;
+      background: #e8f4f8;
+      border-radius: 8px;
+    }
+    #message, #searchMessage {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+	.logo-link {
+  display: inline-block;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  text-decoration: none;
+}
+
+.logo-link:hover {
+  transform: scale(1.04);
+  opacity: 0.92;
+}
+.buttons {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 17px;
+      margin: 0 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      transition: background 0.2s;
+    }
+	#addBtnMain {
+      background: #27ae60;
+    }
+    #addBtnMain:hover {
+      background: #219653;
+    }
+    #searchBtnMain {
+      background: #2980b9;
+    }
+    #searchBtnMain:hover {
+      background: #2471a3;
+    }
+	.form-container, .search-container {
+      display: none;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+<a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
+
+<div class="back-link">
+  <a href="/"style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">Home</a>
+</div>
+  <h1>Compensation Details</h1>
+
+<div class="buttons">
+  <button id="searchBtnMain">Search Compensation</button>
+  <button id="addBtnMain">Add Compensation details</button>
+</div>
+  <!-- Search Section -->
+  <div id="searchContainer" class="search-container">
+  <div class="section">
+    <h2>Search Compensation Records</h2>
+    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+      <div class="form-group" style="flex: 1; min-width: 250px;">
+        <label for="searchEmpId">Employee ID (leave blank for all)</label>
+        <input type="number" id="searchEmpId" placeholder="Enter Emp ID">
+      </div>
+      <button id="searchBtn">Search</button>
+    </div>
+    <div id="searchMessage"></div>
+
+    <table id="compensationTable">
+      <thead>
+        <tr>
+          <th>Emp ID</th>
+          <th>Name</th>
+          <th>Basic Monthly</th>
+          <th>Gross BoB (Monthly)</th>
+          <th>Total Gross (Monthly)</th>
+          <th>Total Gross (Annual)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="compensationBody"></tbody>
+    </table>
+  </div>
+  </div>
+
+  <!-- Add / Edit Form -->
+  <div id="addFormContainer" class="search-container">
+  <div class="section">
+    <h2 id="formTitle">Add Compensation Details</h2>
+
+    <form id="compensationForm">
+      <!-- Employee Info -->
+      <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+        <div class="form-group" style="flex: 1; min-width: 180px;">
+          <label for="empid">Employee ID *</label>
+          <input type="number" id="empid" required placeholder="Enter ID">
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 180px;">
+          <label>Name</label>
+          <input type="text" id="name" readonly disabled>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 220px;">
+          <label>Email</label>
+          <input type="email" id="email" readonly disabled>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 160px;">
+          <label>Hire Date</label>
+          <input type="text" id="hire_date" readonly disabled>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 140px;">
+          <label>Grade</label>
+          <input type="text" id="grade" readonly disabled>
+        </div>
+      </div>
+
+      <!-- Compensation Table Layout -->
+      <div class="section">
+        <h2>Compensation Details (All Components in Rs.)</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <thead>
+            <tr style="background: #ecf0f1;">
+              <th style="padding: 12px; border: 1px solid #dfe6e9; text-align: left;">Component Category</th>
+              <th style="padding: 12px; border: 1px solid #dfe6e9; text-align: right;">Monthly</th>
+              <th style="padding: 12px; border: 1px solid #dfe6e9; text-align: right;">Annual</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 1) Fixed Compensation -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">1) Fixed Compensation</td>
+            </tr>
+            <tr>
+              <td>Basic Monthly</td>
+              <td style="text-align: right;">
+                <input type="number" id="basic_monthly" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="basic_annual_display">0.00</td>
+            </tr>
+
+            <!-- Bouquet of Benefits -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">Bouquet Of Benefits #</td>
+            </tr>
+            <tr>
+              <td colspan="3">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px;">House Rent Allowance</td>
+                    <td style="text-align: right;">
+                      <input type="number" id="hra" step="0.01" min="0" style="width: 100%; text-align: right;">
+                    </td>
+                    <td style="text-align: right;" id="hra_annual_display">0.00</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Leave Travel Assistance</td>
+                    <td style="text-align: right;">
+                      <input type="number" id="lta" step="0.01" min="0" style="width: 100%; text-align: right;">
+                    </td>
+                    <td style="text-align: right;" id="lta_annual_display">0.00</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Food Card</td>
+                    <td style="text-align: right;">
+                      <input type="number" id="food_card" step="0.01" min="0" style="width: 100%; text-align: right;">
+                    </td>
+                    <td style="text-align: right;" id="food_card_annual_display">0.00</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Communication Allowance</td>
+                    <td style="text-align: right;">
+                      <input type="number" id="communication" step="0.01" min="0" style="width: 100%; text-align: right;">
+                    </td>
+                    <td style="text-align: right;" id="communication_annual_display">0.00</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Personal Allowance</td>
+                    <td style="text-align: right;">
+                      <input type="number" id="personal_allowance" step="0.01" min="0" style="width: 100%; text-align: right;">
+                    </td>
+                    <td style="text-align: right;" id="personal_allowance_annual_display">0.00</td>
+                  </tr>
+                  <tr class="total-row">
+                    <td style="font-weight: bold;">GROSS BOUQUET OF BENEFITS</td>
+                    <td style="text-align: right; font-weight: bold;" id="gross_bob_monthly_display">0.00</td>
+                    <td style="text-align: right; font-weight: bold;" id="gross_bob_annual_display">0.00</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- 2) Performance Pay -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">2) Performance Pay</td>
+            </tr>
+            <tr>
+              <td>Monthly Performance Pay</td>
+              <td style="text-align: right;">
+                <input type="number" id="monthly_performance" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="monthly_performance_annual_display">0.00</td>
+            </tr>
+            <tr>
+              <td>Performance Bonus *</td>
+              <td style="text-align: right;">
+                <input type="number" id="performance_bonus" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="performance_bonus_annual_display">0.00</td>
+            </tr>
+
+            <!-- 3) City Allowance -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">3) City Allowance</td>
+            </tr>
+            <tr>
+              <td>City Allowance</td>
+              <td style="text-align: right;">
+                <input type="number" id="city_allowance" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="city_allowance_annual_display">0.00</td>
+            </tr>
+
+            <!-- 4) Annual Components/Retirals -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">4) Annual Components/Retirals</td>
+            </tr>
+            <tr>
+              <td>Health Insurance</td>
+              <td style="text-align: right;">NA</td>
+              <td style="text-align: right;">
+                <input type="number" id="health_insurance" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+            </tr>
+            <tr>
+              <td>Provident Fund</td>
+              <td style="text-align: right;">
+                <input type="number" id="provident_fund" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="provident_fund_annual_display">0.00</td>
+            </tr>
+            <tr>
+              <td>Gratuity</td>
+              <td style="text-align: right;">
+                <input type="number" id="gratuity" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="gratuity_annual_display">0.00</td>
+            </tr>
+
+            <!-- Total Gross -->
+            <tr class="total-row" style="font-weight: bold; background: #e8f4f8;">
+              <td>TOTAL GROSS</td>
+              <td style="text-align: right;" id="total_gross_monthly_display">0.00</td>
+              <td style="text-align: right;" id="total_gross_annual_display">0.00</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 30px; text-align: center;">
+          <button type="submit" id="saveBtn" style="background:#e67e22; color:white; padding:16px 60px; font-size:1.2em; border:none; border-radius:8px; cursor:pointer;">
+            Save Compensation Details
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <div id="message" style="margin-top:30px; padding:14px; border-radius:8px; text-align:center;"></div>
+  </div>
+  </div>
+
+  <script>
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+      background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      animation: slideIn 0.4s ease-out;
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => toast.remove(), 500);
+    }, 5000);
+  }
+
+ // Show/hide sections on button click
+  document.getElementById('addBtnMain').addEventListener('click', () => {
+    document.getElementById('addFormContainer').style.display = 'block';
+    document.getElementById('searchContainer').style.display = 'none';
+  });
+
+  document.getElementById('searchBtnMain').addEventListener('click', () => {
+    document.getElementById('searchContainer').style.display = 'block';
+    document.getElementById('addFormContainer').style.display = 'none';
+  });
+
+  // Auto-populate employee details when empid loses focus
+  document.getElementById('empid').addEventListener('blur', async () => {
+    const empid = document.getElementById('empid').value.trim();
+    if (!empid || isNaN(empid)) return;
+
+    try {
+      const response = await fetch(`/compensation/employee/${empid}`);
+      const result = await response.json();
+
+      if (result.status === 'success' && result.employee) {
+        const emp = result.employee;
+        document.getElementById('name').value = emp.name || '';
+        document.getElementById('email').value = emp.email || '';
+        document.getElementById('hire_date').value = emp.hire_date || '';
+        document.getElementById('grade').value = emp.grade || '';
+        showToast('Employee details auto-filled', 'success');
+      } else {
+        showToast(result.message || 'Employee not found', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to fetch employee details', 'error');
+    }
+  });
+
+  // Unified live calculation: Gross BoB + Total Gross + Monthly → Annual
+  function updateAllCalculations() {
+    // Gross BoB (monthly)
+    let grossBobMonthly = 0;
+    ['hra', 'lta', 'food_card', 'communication', 'personal_allowance'].forEach(id => {
+      grossBobMonthly += parseFloat(document.getElementById(id)?.value) || 0;
+    });
+    document.getElementById('gross_bob_monthly_display').textContent = grossBobMonthly.toFixed(2);
+    document.getElementById('gross_bob_annual_display').textContent = (grossBobMonthly * 12).toFixed(2);
+
+    // Total Gross (monthly)
+    let totalGrossMonthly = 0;
+    [
+      'basic_monthly', 'monthly_performance', 'performance_bonus', 'city_allowance',
+      'health_insurance', 'provident_fund', 'gratuity', 'overtime_pay', 'transport_allowance'
+    ].forEach(id => {
+      totalGrossMonthly += parseFloat(document.getElementById(id)?.value) || 0;
+    });
+    totalGrossMonthly += grossBobMonthly; // include BoB
+    document.getElementById('total_gross_monthly_display').textContent = totalGrossMonthly.toFixed(2);
+    document.getElementById('total_gross_annual_display').textContent = (totalGrossMonthly * 12).toFixed(2);
+
+    // Individual Annual values (×12)
+    const monthlyToAnnual = {
+      basic_monthly: 'basic_annual_display',
+      monthly_performance: 'monthly_performance_annual_display',
+      performance_bonus: 'performance_bonus_annual_display',
+      city_allowance: 'city_allowance_annual_display',
+      hra: 'hra_annual_display',
+      lta: 'lta_annual_display',
+      food_card: 'food_card_annual_display',
+      communication: 'communication_annual_display',
+      personal_allowance: 'personal_allowance_annual_display',
+      health_insurance: 'health_insurance_annual_display',
+      provident_fund: 'provident_fund_annual_display',
+      gratuity: 'gratuity_annual_display'
+    };
+
+    Object.keys(monthlyToAnnual).forEach(monthlyId => {
+      const monthlyValue = parseFloat(document.getElementById(monthlyId)?.value) || 0;
+      const annualEl = document.getElementById(monthlyToAnnual[monthlyId]);
+      if (annualEl) annualEl.textContent = (monthlyValue * 12).toFixed(2);
+    });
+  }
+
+  // Attach listeners to all monthly inputs
+  document.addEventListener('DOMContentLoaded', () => {
+    const monthlyInputs = [
+      'basic_monthly', 'monthly_performance', 'performance_bonus', 'city_allowance',
+      'hra', 'lta', 'food_card', 'communication', 'personal_allowance',
+      'health_insurance', 'provident_fund', 'gratuity', 'overtime_pay', 'transport_allowance'
+    ];
+
+    monthlyInputs.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.addEventListener('input', updateAllCalculations);
+    });
+
+    // Initial run on page load
+    updateAllCalculations();
+  });
+
+
+  // Search logic with re-calculation
+  document.getElementById('searchBtn').addEventListener('click', async () => {
+    const empidFilter = document.getElementById('searchEmpId').value.trim();
+    const tbody = document.getElementById('compensationBody');
+    const msg = document.getElementById('searchMessage');
+
+    tbody.innerHTML = '';
+    msg.textContent = '';
+
+    try {
+      let url = '/search_compensation';
+      if (empidFilter) url += `?empid=${encodeURIComponent(empidFilter)}`;
+
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        if (result.compensation.length === 0) {
+          msg.textContent = 'No compensation records found';
+          msg.className = 'error';
+          return;
+        }
+
+        result.compensation.forEach(rec => {
+          const basicMonthly = parseFloat(rec.basic_monthly) || 0;
+          const monthlyPerformance = parseFloat(rec.monthly_performance) || 0;
+          const performanceBonus = parseFloat(rec.performance_bonus) || 0;
+          const cityAllowance = parseFloat(rec.city_allowance) || 0;
+          const hra = parseFloat(rec.hra) || 0;
+          const lta = parseFloat(rec.lta) || 0;
+          const foodCard = parseFloat(rec.food_card) || 0;
+          const communication = parseFloat(rec.communication) || 0;
+          const personalAllowance = parseFloat(rec.personal_allowance) || 0;
+          const healthInsurance = parseFloat(rec.health_insurance) || 0;
+          const providentFund = parseFloat(rec.provident_fund) || 0;
+          const gratuity = parseFloat(rec.gratuity) || 0;
+          const overtimePay = parseFloat(rec.overtime_pay) || 0;
+          const transportAllowance = parseFloat(rec.transport_allowance) || 0;
+
+          const grossBobMonthly = hra + lta + foodCard + communication + personalAllowance;
+          const totalGrossMonthly = basicMonthly + monthlyPerformance + performanceBonus + cityAllowance +
+                                    grossBobMonthly + healthInsurance + providentFund + gratuity +
+                                    overtimePay + transportAllowance;
+          const totalGrossAnnual = totalGrossMonthly * 12;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${rec.empid || ''}</td>
+            <td>${rec.name || ''}</td>
+            <td>${basicMonthly.toFixed(2)}</td>
+            <td>${grossBobMonthly.toFixed(2)}</td>
+            <td class="summary">
+              ${totalGrossMonthly.toFixed(2)}</td>
+              <td>${totalGrossAnnual.toFixed(2)}</td>
+            </td>
+            <td>
+              <button class="edit-btn" data-empid="${rec.empid}">Edit</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        msg.textContent = `Found ${result.compensation.length} record(s)`;
+        msg.className = 'success';
+      } else {
+        msg.textContent = result.message || 'Error loading records';
+        msg.className = 'error';
+      }
+    } catch (err) {
+      msg.textContent = 'Failed to connect';
+      msg.className = 'error';
+    }
+  });
+
+  // Edit logic - populate form
+document.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('edit-btn')) {
+    const empid = e.target.dataset.empid;
+
+    try {
+      const response = await fetch(`/compensation_record/${empid}`);
+      const result = await response.json();
+
+      if (result.status === 'success' && result.record) {
+        const rec = result.record;
+
+        // Basic employee info
+        document.getElementById('empid').value = rec.empid || '';
+        document.getElementById('name').value = rec.name || '';
+        document.getElementById('email').value = rec.email || '';
+        document.getElementById('hire_date').value = rec.hire_date || '';
+        document.getElementById('grade').value = rec.grade || '';
+
+        // Monthly fields (only the ones that actually exist as inputs)
+        if (document.getElementById('basic_monthly')) document.getElementById('basic_monthly').value = rec.basic_monthly || '';
+        if (document.getElementById('monthly_performance')) document.getElementById('monthly_performance').value = rec.monthly_performance || '';
+        if (document.getElementById('performance_bonus')) document.getElementById('performance_bonus').value = rec.performance_bonus || '';
+        if (document.getElementById('city_allowance')) document.getElementById('city_allowance').value = rec.city_allowance || '';
+        if (document.getElementById('hra')) document.getElementById('hra').value = rec.hra || '';
+        if (document.getElementById('lta')) document.getElementById('lta').value = rec.lta || '';
+        if (document.getElementById('food_card')) document.getElementById('food_card').value = rec.food_card || '';
+        if (document.getElementById('communication')) document.getElementById('communication').value = rec.communication || '';
+        if (document.getElementById('personal_allowance')) document.getElementById('personal_allowance').value = rec.personal_allowance || '';
+        if (document.getElementById('health_insurance')) document.getElementById('health_insurance').value = rec.health_insurance || '';
+        if (document.getElementById('provident_fund')) document.getElementById('provident_fund').value = rec.provident_fund || '';
+        if (document.getElementById('gratuity')) document.getElementById('gratuity').value = rec.gratuity || '';
+        if (document.getElementById('overtime_pay')) document.getElementById('overtime_pay').value = rec.overtime_pay || '';
+        if (document.getElementById('transport_allowance')) document.getElementById('transport_allowance').value = rec.transport_allowance || '';
+
+        // Trigger calculations so Annual values appear immediately
+        updateAllCalculations();
+
+        showToast('Record loaded for editing', 'success');
+      } else {
+        showToast(result.message || 'Record not found', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to load record', 'error');
+      console.error('Edit load error:', err);
+    }
+  }
+});
+
+  // Form submit - save to backend
+  document.getElementById('compensationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+      empid: parseInt(document.getElementById('empid').value),
+      name: document.getElementById('name').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      hire_date: document.getElementById('hire_date').value || null,
+      grade: document.getElementById('grade').value || null,
+
+      basic_monthly: parseFloat(document.getElementById('basic_monthly').value) || 0,
+      monthly_performance: parseFloat(document.getElementById('monthly_performance').value) || 0,
+      performance_bonus: parseFloat(document.getElementById('performance_bonus').value) || 0,
+      city_allowance: parseFloat(document.getElementById('city_allowance').value) || 0,
+
+      hra: parseFloat(document.getElementById('hra').value) || 0,
+      lta: parseFloat(document.getElementById('lta').value) || 0,
+      food_card: parseFloat(document.getElementById('food_card').value) || 0,
+      communication: parseFloat(document.getElementById('communication').value) || 0,
+      personal_allowance: parseFloat(document.getElementById('personal_allowance').value) || 0,
+
+      health_insurance: parseFloat(document.getElementById('health_insurance').value) || 0,
+      provident_fund: parseFloat(document.getElementById('provident_fund').value) || 0,
+      gratuity: parseFloat(document.getElementById('gratuity').value) || 0,
+
+      overtime_pay: parseFloat(document.getElementById('overtime_pay').value) || 0,
+      transport_allowance: parseFloat(document.getElementById('transport_allowance').value) || 0,
+
+      currency: 'INR',
+      pay_period: 'Monthly'
+    };
+
+    try {
+      const response = await fetch('/save_compensation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      showToast(result.message, result.status === 'success' ? 'success' : 'error');
+
+      if (result.status === 'success') {
+        document.getElementById('compensationForm').reset();
+        updateAllCalculations(); // reset all displays
+      }
+    } catch (err) {
+      showToast('Failed to save', 'error');
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Salary & Payslips - Pay Day</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 25px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly], input[disabled] {
+      background: #f0f0f0;
+      color: #555;
+      cursor: not-allowed;
+    }
+    button {
+      padding: 14px 40px;
+      font-size: 17px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    #downloadBtn {
+      background: #27ae60;
+    }
+    #downloadBtn:hover {
+      background: #219653;
+    }
+    #searchBtn {
+      background: #3498db;
+    }
+    #searchBtn:hover {
+      background: #2980b9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: white;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+    }
+    .download-link {
+      color: #27ae60;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .download-link:hover {
+      text-decoration: underline;
+    }
+    .back-link {
+      display: block;
+      margin-top: 40px;
+      text-align: center;
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<a href="/" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">
+   Home
+</a>
+<img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+  <h1>Salary & Payslips</h1>
+
+  <!-- Download Payslip Section -->
+  <div style="background: white; padding: 40px; border-radius: 12px; margin-top: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    <h2>Download Payslips</h2>
+
+    <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+      <div class="form-group" style="flex: 1; min-width: 300px;">
+        <label for="empid">Employee ID *</label>
+        <input type="number" id="empid" required placeholder="Enter Employee ID">
+      </div>
+
+      <div class="form-group" style="flex: 1; min-width: 300px;">
+        <label for="financialYear">Financial Year</label>
+        <select id="financialYear">
+          <option value="">Select Year</option>
+          <option value="2024-25">FY 2024-25</option>
+          <option value="2025-26" selected>FY 2025-26</option>
+          <option value="2026-27">FY 2026-27</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="flex: 1; min-width: 300px;">
+        <label for="month">Month</label>
+        <select id="month">
+          <option value="">Select Month</option>
+          <option value="01">January</option>
+          <option value="02">February</option>
+          <option value="03">March</option>
+          <option value="04">April</option>
+          <option value="05">May</option>
+          <option value="06">June</option>
+          <option value="07">July</option>
+          <option value="08">August</option>
+          <option value="09">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+      <button id="downloadBtn">Download Payslip</button>
+    </div>
+
+    <div id="message" style="margin-top: 30px; padding: 14px; border-radius: 8px; text-align: center;"></div>
+  </div>
+
+  <div class="back-link">
+    <a href="/">← Back to Home</a>
+  </div>
+
+  <script>
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+        background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideIn 0.4s ease-out;
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    // Download button click handler (placeholder - we'll connect to backend later)
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const empid = document.getElementById('empid').value.trim();
+      const fy = document.getElementById('financialYear').value;
+      const month = document.getElementById('month').value;
+
+      if (!empid || !fy || !month) {
+        showToast('Please fill Employee ID, Financial Year, and Month', 'error');
+        return;
+      }
+
+      showToast('Preparing payslip download...', 'success');
+      // Backend call will be added in next step
+    });
+  </script>
+
+</body>
+</html>

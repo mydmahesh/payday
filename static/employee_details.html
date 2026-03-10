@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pay Day Employee Management</title>
+  <style>
+  @keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+  }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+     text-align: center;
+      color: #333;
+    }
+    .header .subtitle {
+	 font-size: 2.8em;
+      text-align: center;
+      color: #333;
+    }
+    .buttons {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 17px;
+      margin: 0 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      transition: background 0.2s;
+    }
+    #addBtnMain {
+      background: #27ae60;
+    }
+    #addBtnMain:hover {
+      background: #219653;
+    }
+    #searchBtnMain {
+      background: #2980b9;
+    }
+    #searchBtnMain:hover {
+      background: #2471a3;
+    }
+    .form-container, .search-container {
+      display: none;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #34495e;
+    }
+    input, select {
+      width: 100%;
+      padding: 11px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 17px;
+      margin-top: 15px;
+      border-radius: 6px;
+    }
+    #message, #searchMessage {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 15px;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error   { background: #f8d7da; color: #721c24; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
+    }
+    th {
+      background: #ecf0f1;
+      color: #2c3e50;
+    }
+	.logo-link {
+  display: inline-block;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  text-decoration: none;
+}
+
+.logo-link:hover {
+  transform: scale(1.04);
+  opacity: 0.92;
+}
+  </style>
+</head>
+<body>
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000; max-width: 350px;"></div>
+<a href="/" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: #2980b9;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+">
+   Home
+</a>
+
+  <div class="header">
+  <a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
+    <!-- <h1>Pay Day</h1> -->
+    <h1>Employee Management</h1>
+  </div>
+
+  <div class="buttons">
+  
+    <button id="searchBtnMain">Search Employee</button>
+    <button id="addBtnMain">Add New Employee</button>
+	
+  </div>
+  
+<!-- Search Section -->
+  <div id="searchContainer" class="search-container">
+    <h2>Search Employee</h2>
+    <div class="form-group">
+      <label for="searchField">Search by</label>
+      <select id="searchField">
+        <option value="empid">Employee ID</option>
+        <option value="first_name">First Name</option>
+        <option value="last_name">Last Name</option>
+        <option value="email">Email</option>
+		<option value="grade">Grade</option>
+        <option value="is_active">Active Status</option>
+      </select>
+    </div>
+    <div class="form-group" id="searchValueGroup">
+      <label for="searchValue">Value</label>
+      <input type="text" id="searchValue" placeholder="Enter value...">
+    </div>
+    <div class="form-group" id="activeValueGroup" style="display:none;">
+      <label for="activeValue">Active?</label>
+      <select id="activeValue">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
+    </div>
+	<div class="form-group" id="gradeValueGroup" style="display:none;">
+	<label for="gradeValue">Grade</label>
+	<select id="gradeValue">
+    <option value="E1">E1</option>
+    <option value="E2">E2</option>
+    <option value="L1">L1</option>
+    <option value="L2">L2</option>
+    <option value="M1">M1</option>
+    <option value="M2">M2</option>
+    <option value="VP">VP</option>
+    <option value="CEO">CEO</option>
+	</select>
+	</div>
+    <button id="doSearchBtn" class="action-btn" style="background:#2980b9; color:white;">Search</button>
+
+    <div id="searchMessage"></div>
+
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>First Name</th>
+          <th>Last Name</th>
+          <th>Email</th>
+          <th>Hire Date</th>
+		  <th>Grade</th>
+          <th>Salary</th>
+          <th>Active</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Add Employee Form -->
+  <div id="addFormContainer" class="form-container">
+  <button type="button" id="clearBtn" style="position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 15px;background:#dc3545; color:white; margin-left:15px;">
+  Clear Form
+</button>
+  
+  <div id="newEmpIdContainer" style="float: right;display:none; inline-flex; align-items: center; gap: 15px; margin-left: 20px;">
+  <label for="newEmpId" style="font-weight: bold; color: #2c3e50;">Your Emp ID:</label>
+  <input type="text" id="newEmpId" readonly 
+         style="width: 140px; background:#e9ecef; font-weight:bold; text-align:center; font-size:1.3em; padding:8px; border:1px solid #ced4da; border-radius:6px; cursor:not-allowed;">
+</div>
+    <h2>Add New Employee</h2>
+	
+    <form id="employeeForm">
+	
+      <div class="form-group">
+        <label for="first_name">First Name *</label>
+        <input type="text" id="first_name" required>
+      </div>
+      <div class="form-group">
+        <label for="last_name">Last Name *</label>
+        <input type="text" id="last_name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email">
+      </div>
+      <div class="form-group">
+        <label for="hire_date">Hire Date *</label>
+        <input type="date" id="hire_date" required>
+      </div>
+	  <div class="form-group">
+	  <label for="grade">Grade *</label>
+	  <select id="grade" required>
+	  <option value="">Select Grade</option>
+	  <option value="E1">E1</option>
+	  <option value="E2">E2</option>
+	  <option value="L1">L1</option>
+	  <option value="L2">L2</option>
+	  <option value="M1">M1</option>
+	  <option value="M2">M2</option>
+	  <option value="VP">VP</option>
+	  <option value="CEO">CEO</option>
+	  </select>
+</div>
+      <div class="form-group">
+        <label for="salary">Salary</label>
+        <input type="number" id="salary" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="is_active" checked> Active
+        </label>
+      </div>
+      <button type="submit" class="action-btn" style="background:#27ae60; color:white;">Save Employee</button>
+    </form>
+
+  
+    <div id="message"></div>
+  </div>
+
+  
+
+  <script>
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 2000;
+        padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
+        background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideIn 0.4s ease-out;
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    // Show/hide sections
+    document.getElementById('addBtnMain').addEventListener('click', () => {
+      document.getElementById('addFormContainer').style.display = 'block';
+      document.getElementById('searchContainer').style.display = 'none';
+    });
+
+    document.getElementById('searchBtnMain').addEventListener('click', () => {
+      document.getElementById('searchContainer').style.display = 'block';
+      document.getElementById('addFormContainer').style.display = 'none';
+    });
+
+    
+
+    // Form submit - Add Employee
+    document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim() || null,
+        hire_date: document.getElementById('hire_date').value || null,
+        grade: document.getElementById('grade').value || null,
+        salary: document.getElementById('salary').value ? Number(document.getElementById('salary').value) : null,
+        is_active: document.getElementById('is_active').checked ? 1 : 0
+      };
+
+      try {
+        const response = await fetch('/add_employee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+  // Show the new empid next to the buttons
+  document.getElementById('newEmpId').value = result.empid;
+  document.getElementById('newEmpIdContainer').style.display = 'inline-flex';
+
+  // Optional: highlight it briefly
+  const empIdField = document.getElementById('newEmpId');
+  empIdField.style.borderColor = '#27ae60';
+  setTimeout(() => {
+    empIdField.style.borderColor = '#ced4da';
+  }, 3000);
+
+  showToast(`Employee added successfully! New ID: ${result.empid}`, 'success');
+
+  // Do NOT reset the form automatically — let user clear manually
+  // e.target.reset();   ← Comment out or remove this line
+} else {
+  showToast(result.message || 'Failed to add employee', 'error');
+}
+      } catch (err) {
+        showToast('Connection error. Please try again.', 'error');
+        console.error(err);
+      }
+    });
+
+    // Reset form and hide success section
+    function resetFormAndHide() {
+      document.getElementById('employeeForm').reset();
+      document.getElementById('successSection').style.display = 'none';
+      document.getElementById('newEmpId').value = '';
+    }
+
+    // Search functionality
+document.getElementById('searchField').addEventListener('change', function() {
+  const selected = this.value;
+
+  // Hide all value groups
+  document.getElementById('searchValueGroup').style.display = 'none';
+  document.getElementById('activeValueGroup').style.display = 'none';
+  document.getElementById('gradeValueGroup').style.display = 'none';
+
+  // Reset/clear values and show the right group
+  if (selected === 'is_active') {
+    document.getElementById('activeValueGroup').style.display = 'block';
+    document.getElementById('activeValue').value = '1';  // default to Yes
+  } else if (selected === 'grade') {
+    document.getElementById('gradeValueGroup').style.display = 'block';
+    document.getElementById('gradeValue').value = '';  // ready for selection
+  } else {
+    document.getElementById('searchValueGroup').style.display = 'block';
+    document.getElementById('searchValue').value = '';  // clear text input
+    document.getElementById('searchValue').focus();     // auto-focus for typing
+  }
+});
+
+// Trigger once on page load (so correct field shows for default "Employee ID")
+document.getElementById('searchField').dispatchEvent(new Event('change'));
+
+// Search button functionality
+document.getElementById('doSearchBtn').addEventListener('click', async () => {
+  const field = document.getElementById('searchField').value;
+  let value;
+
+  // Get value from the active input
+  if (field === 'is_active') {
+    value = document.getElementById('activeValue').value;
+  } else if (field === 'grade') {
+    value = document.getElementById('gradeValue').value.trim();
+  } else {
+    value = document.getElementById('searchValue').value.trim();
+  }
+
+  // Basic validation
+  if (!value && field !== 'is_active') {
+    alert('Please enter or select a value');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/search?field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`);
+    const result = await response.json();
+
+    const tbody = document.getElementById('resultsBody');
+    const msg = document.getElementById('searchMessage');
+    tbody.innerHTML = '';
+
+    if (result.status === 'success') {
+      if (result.employees.length === 0) {
+        msg.textContent = 'No employees found';
+        msg.className = 'error';
+        return;
+      }
+
+      result.employees.forEach(emp => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${emp.empid || ''}</td>
+          <td>${emp.first_name || ''}</td>
+          <td>${emp.last_name || ''}</td>
+          <td>${emp.email || ''}</td>
+          <td>${emp.hire_date || ''}</td>
+          <td>${emp.grade || ''}</td>
+          <td>${emp.salary || ''}</td>
+          <td>${emp.is_active ? 'Yes' : 'No'}</td>
+          <td>
+            <a href="/static/edit.html?id=${emp.empid}"
+               style="color: #e67e22; font-weight: bold; text-decoration: none;">
+              Edit
+            </a>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      msg.textContent = `Found ${result.employees.length} employee(s)`;
+      msg.className = 'success';
+    } else {
+      msg.textContent = result.message || 'Error';
+      msg.className = 'error';
+    }
+  } catch (err) {
+    console.error("Search failed:", err);
+    document.getElementById('searchMessage').textContent = 'Failed to connect';
+    document.getElementById('searchMessage').className = 'error';
+  }
+});
+	// Clear Form button functionality
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('employeeForm').reset();
+  document.getElementById('newEmpId').value = '';                 // clear the ID field
+  document.getElementById('newEmpIdContainer').style.display = 'none';
+  showToast('Form cleared successfully', 'success');
+});
+  </script>
+
+</body>
+</html>
