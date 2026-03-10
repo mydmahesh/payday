@@ -4,91 +4,46 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tax Deductions - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Page-specific styles for Tax Deductions */
     body {
-      font-family: Arial, sans-serif;
       max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
-    h1, h2, h3 {
-      text-align: center;
-      color: #333;
-    }
-    .form-group {
-      margin-bottom: 28px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      font-size: 16px;
-      border: 1px solid #bdc3c7;
-      border-radius: 5px;
-    }
-    input[readonly], input[disabled] {
-      background: #f0f0f0;
-      color: #555;
-      cursor: not-allowed;
-    }
-    button {
-      padding: 14px 40px;
-      font-size: 17px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-    }
+
     #saveBtn {
-      background: #e67e22;
+      background-color: var(--secondary-orange);
     }
+
     #saveBtn:hover {
-      background: #d35400;
+      background-color: #d35400;
     }
+
     #searchBtn {
-      background: #3498db;
+      background-color: var(--primary-blue);
     }
+
     #searchBtn:hover {
-      background: #2980b9;
+      background-color: var(--primary-blue-hover);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 30px;
-      background: white;
-    }
-    th, td {
-      padding: 12px;
-      border: 1px solid #dfe6e9;
-      text-align: left;
-    }
-    th {
-      background: #ecf0f1;
-    }
+
     .edit-btn {
-      background: #27ae60;
+      background-color: var(--success-green);
       color: white;
       border: none;
       padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
     }
-    .back-link {
-      display: block;
-      margin-top: 40px;
-      text-align: center;
-      color: #2980b9;
-      text-decoration: none;
-      font-weight: bold;
+
+    .edit-btn:hover {
+      background-color: var(--success-green-hover);
     }
-    .back-link:hover {
-      text-decoration: underline;
+
+    .back-link {
+      margin-top: 40px;
     }
   </style>
 </head>

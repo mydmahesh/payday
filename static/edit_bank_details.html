@@ -4,50 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Edit Bank Details - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Page-specific styles for Edit Bank Details */
     body {
-      font-family: Arial, sans-serif;
       max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
+
     .header {
       text-align: left;
       margin-bottom: 40px;
     }
+
     .header h1 {
       text-align: center;
-      color: #333;
     }
+
     h1 {
-      color: #2c3e50;
       margin: 0;
     }
+
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
+    }
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
+    }
+
     .form-group {
       margin-bottom: 22px;
     }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-      color: #34495e;
-    }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      font-size: 16px;
-      border: 1px solid #bdc3c7;
-      border-radius: 6px;
-    }
-    input[readonly], input[disabled] {
-      background: #f0f0f0;
-      color: #555;
-      cursor: not-allowed;
-    }
+
     .action-btn {
-      background: #e67e22;
+      background-color: var(--secondary-orange);
       color: white;
       border: none;
       padding: 14px 50px;
@@ -56,65 +51,60 @@
       border-radius: 8px;
       cursor: pointer;
       margin-top: 20px;
+      width: auto;
     }
+
     .action-btn:hover {
-      background: #d35400;
+      background-color: #d35400;
     }
-    #message, .warning {
+
+    #message,
+    .warning {
       margin-top: 20px;
       padding: 14px;
       border-radius: 8px;
       text-align: center;
       font-weight: bold;
     }
-    .success { background: #d4edda; color: #155724; }
-    .error   { background: #f8d7da; color: #721c24; }
-    .warning { background: #fff3cd; color: #856404; }
+
+    .success {
+      background-color: var(--alert-success-bg);
+      color: var(--alert-success-text);
+    }
+
+    .error {
+      background-color: var(--alert-error-bg);
+      color: var(--alert-error-text);
+    }
+
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
     .back-link {
       display: inline-block;
       margin: 20px 0;
-      color: #2980b9;
       font-weight: bold;
       text-decoration: none;
     }
-    .back-link:hover {
-      text-decoration: underline;
-    }
-    .logo-link {
-      display: inline-block;
-      transition: transform 0.2s ease;
-    }
-    .logo-link:hover {
-      transform: scale(1.04);
+
+    .back-link a {
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-<!-- Fixed Home button -->
-<a href="/" style="
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 10px 20px;
-  background: #2980b9;
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-">
-  Home
-</a>
+<a href="/" class="home-btn">Home</a>
 
-<div class = "header">
+<div class="header">
   <a href="/" class="logo-link">
     <img src="images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
   </a>
 </div>
 <div class="back-link">
-  <a href="/bank-details" style="color:#2980b9; text-decoration:none; font-weight:bold;">← Back to Bank Menu</a>
+  <a href="/bank-details" class="back-link">← Back to Bank Menu</a>
 </div>
 
 <div class="header">

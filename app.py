@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -25,16 +26,16 @@ def add_employee():
         email      = data.get('email')
         hire_date  = data.get('hire_date')
         Grade      = data.get('Grade')
-        salary     = data.get('salary')
+        # salary column removed from pd_employees, ignore any incoming value
         is_active  = data.get('is_active', 1)
 
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO pd_employees (first_name, last_name, email, hire_date, grade, salary, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (first_name, last_name, email, hire_date, data.get('grade'), salary, is_active))
+            INSERT INTO pd_employees (first_name, last_name, email, hire_date, grade, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (first_name, last_name, email, hire_date, data.get('grade'), is_active))
         
         conn.commit()
         # Get the newly inserted empid
@@ -163,7 +164,7 @@ def update_employee():
         email = data.get('email')
         hire_date = data.get('hire_date')
         grade = data.get('grade')
-        salary = data.get('salary')
+        # salary column removed, ignore
         is_active = data.get('is_active', 1)
 
         conn = get_db_connection()
@@ -171,9 +172,9 @@ def update_employee():
 
         cursor.execute('''
             UPDATE pd_employees
-            SET first_name = ?, last_name = ?, email = ?, hire_date = ?, grade = ?, salary = ?, is_active = ?
+            SET first_name = ?, last_name = ?, email = ?, hire_date = ?, grade = ?, is_active = ?
             WHERE empid = ?
-        ''', (first_name, last_name, email, hire_date, data.get('grade'), salary, is_active, empid))
+        ''', (first_name, last_name, email, hire_date, data.get('grade'), is_active, empid))
 
         conn.commit()
         conn.close()
@@ -773,7 +774,7 @@ def pay():
 def process_pay():
     data = request.get_json()
     
-    required_fields = ['empid', 'pay_term', 'amount', 'monthly_salary']
+    required_fields = ['empid', 'pay_term', 'amount', 'monthly_salary']  # monthly_salary will be provided by frontend
     for field in required_fields:
         if field not in data:
             return jsonify({
@@ -794,10 +795,10 @@ def process_pay():
     
     conn = get_db_connection()
     
-    # Verify employee exists and is active
+    # Verify employee exists and is active (no salary check any more)
     employee = conn.execute('''
-        SELECT empid, is_active, salary
-        FROM employees
+        SELECT empid, is_active
+        FROM pd_employees
         WHERE empid = ?
     ''', (empid,)).fetchone()
     
@@ -815,14 +816,6 @@ def process_pay():
             'message': 'Employee is not active'
         }), 400
     
-    # Optional: Check if salary matches what frontend sent (extra safety)
-    db_monthly_salary = float(employee['salary']) if employee['salary'] else 0
-    if abs(db_monthly_salary - monthly_salary) > 0.01:
-        conn.close()
-        return jsonify({
-            'status': 'error',
-            'message': 'Salary mismatch - possible data changed'
-        }), 400
     
     # For now: just simulate success (in Step 3/4 we'll record this in a payments table)
     payment_record = {

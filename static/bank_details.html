@@ -4,106 +4,79 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bank Details - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Page-specific styles for Bank Details */
     body {
-      font-family: Arial, sans-serif;
       max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
-	.header {
+
+    .header {
       text-align: left;
       margin-bottom: 40px;
     }
+
     .header h1 {
       text-align: center;
-      color: #333;
     }
-    h1, h2 {
-      text-align: center;
-      color: #333;
+
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
     }
-    .buttons {
-      text-align: center;
-      margin: 30px 0;
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
     }
-    button {
-      padding: 12px 30px;
-      font-size: 17px;
-      margin: 0 15px;
-      cursor: pointer;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      transition: background 0.2s;
-    }
-    #addBtnMain { background: #27ae60; }
-    #addBtnMain:hover { background: #219653; }
-    #searchBtnMain { background: #2980b9; }
-    #searchBtnMain:hover { background: #2471a3; }
-    .form-container, .search-container {
+
+    .form-container,
+    .search-container {
       display: none;
-      background: white;
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
       margin-bottom: 30px;
+      margin-top: 30px;
     }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      font-size: 16px;
-      border: 1px solid #bdc3c7;
-      border-radius: 5px;
-    }
-    input[readonly], input[disabled] {
-      background: #f0f0f0;
-      color: #555;
-      cursor: not-allowed;
-    }
+
     #saveBtn {
-      background: #e67e22;
+      background-color: var(--secondary-orange);
       padding: 14px 50px;
+      width: auto;
       font-size: 18px;
       font-weight: bold;
     }
-    #saveBtn:hover { background: #d35400; }
+
+    #saveBtn:hover {
+      background-color: #d35400;
+    }
+
     #searchBankBtn {
-      background: #3498db;
+      background-color: var(--primary-blue);
       padding: 14px 40px;
+      width: auto;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 25px;
-      background: white;
+
+    #searchBankBtn:hover {
+      background-color: var(--primary-blue-hover);
     }
-    th, td {
-      padding: 12px;
-      border: 1px solid #dfe6e9;
-      text-align: left;
-    }
-    th {
-      background: #ecf0f1;
-    }
+
     .edit-btn {
-      background: #27ae60;
+      background-color: var(--success-green);
       color: white;
       border: none;
       padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
+      font-weight: bold;
     }
+
+    .edit-btn:hover {
+      background-color: var(--success-green-hover);
+    }
+
     .warning {
       color: #c0392b;
       font-weight: bold;
@@ -112,22 +85,13 @@
       background: #fce8e6;
       border-radius: 6px;
     }
-    .logo-link {
-      display: inline-block;
-      transition: transform 0.2s ease;
-    }
-    .logo-link:hover {
-      transform: scale(1.04);
-    }
   </style>
 </head>
 <body>
 
-<a href="/" style="position:fixed; top:20px; left:20px; padding:10px 20px; background:#2980b9; color:white; font-weight:bold; text-decoration:none; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:1000;">
-  Home
-</a>
+<a href="/" class="home-btn">Home</a>
 
-<div class = "header">
+<div class="header">
   <a href="/" class="logo-link">
     <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
   </a>

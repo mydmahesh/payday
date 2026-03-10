@@ -4,103 +4,83 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Edit Employee</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
-  @keyframes slideIn {
-  from { transform: translateX(120%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
+    /* Page-specific styles for Edit Employee */
     body {
-      font-family: Arial, sans-serif;
-      max-width: 700px;
+      max-width: 900px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
+
     .header {
-      text-align: center;
+      text-align: left;
       margin-bottom: 40px;
     }
+
     .header h1 {
-      margin: 0;
-      font-size: 2.8em;
-      color: #2c3e50;
-      font-weight: bold;
+      text-align: center;
     }
+
     .header .subtitle {
-      margin: 0;
       font-size: 1.8em;
-      color: #7f8c8d;
       font-weight: 500;
     }
-	h1 {
-      text-align: center;
-      color: #333;
+
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
     }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
     }
-    input, button {
+
+    input {
       width: 100%;
       padding: 12px;
       box-sizing: border-box;
       font-size: 16px;
     }
-    button {
-      background: #f39c12;
-      color: white;
-      border: none;
-      cursor: pointer;
+
+    button[type="submit"] {
+      background-color: var(--secondary-orange);
+      width: 100%;
       margin-top: 15px;
     }
-    button:hover {
-      background: #e67e22;
+
+    button[type="submit"]:hover {
+      background-color: var(--secondary-orange-hover);
     }
+
     #message {
       margin-top: 25px;
-      padding: 12px;
-      border-radius: 6px;
-      text-align: center;
     }
-    .success { background: #d4edda; color: #155724; }
-    .error   { background: #f8d7da; color: #721c24; }
+
     .back-link {
-      display: inline-block;
-      margin-top: 20px;
-      color: #2980b9;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    .back-link:hover {
-      text-decoration: underline;
+      margin-top: 30px;
     }
   </style>
 </head>
 <body>
-<div class="back-link">
-  <a href="/"style="
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 10px 20px;
-  background: #2980b9;
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-">Home</a>
+<a href="/" class="home-btn">Home</a>
+
+<div class="header">
+  <a href="/" class="logo-link">
+  <img src="images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
+</div>
+
+
+<div>
+<a href="/employee_details" class="back-link" style="position: fixed; right: 20px;">← Back to Employee Page</a>
 </div>
 <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000; max-width: 350px;"></div>
-<div class="header">
-    <h1>Pay Day</h1>
-    <p class="subtitle">Employee Management</p>
-
-  </div>
   	
 	<h1>Edit Employee</h1>
+  
   
   <form id="editForm">
     <input type="hidden" id="empid" name="empid">
@@ -140,14 +120,9 @@
 	</select>
 	</div>
 
-    <div class="form-group">
-      <label for="salary">Salary</label>
-      <input type="number" id="salary" step="0.01" min="0">
-    </div>
-
-    <div class="form-group">
+    <div class="form-group" style="text-align: center;" >
       <label>
-        <input type="checkbox" id="is_active"> Active
+        <input type="checkbox" id="is_active" > Active
       </label>
     </div>
 
@@ -156,7 +131,6 @@
 
   <div id="message"></div>
 
-  <a href="/employee_details" class="back-link">← Back to Main Page</a>
 
   <script>
   function showToast(message, type) {
@@ -210,7 +184,7 @@
             document.getElementById('email').value = emp.email || '';
             document.getElementById('hire_date').value = emp.hire_date || '';
 			document.getElementById('grade').value = emp.grade || '';
-            document.getElementById('salary').value = emp.salary || '';			
+			
             document.getElementById('is_active').checked = emp.is_active === 1;
           } else {
             document.getElementById('message').textContent = result.message || 'Employee not found';
@@ -234,7 +208,6 @@
         email: document.getElementById('email').value.trim() || null,
         hire_date: document.getElementById('hire_date').value || null,
 		grade:	document.getElementById('grade').value || null,
-        salary: document.getElementById('salary').value ? Number(document.getElementById('salary').value) : null,
         is_active: document.getElementById('is_active').checked ? 1 : 0
       };
 

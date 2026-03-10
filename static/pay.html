@@ -4,68 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pay Employee - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Page-specific styles for Pay */
     body {
-      font-family: Arial, sans-serif;
       max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
-    h1, h2 {
-      text-align: center;
-      color: #333;
-    }
+
     .container {
       background: white;
       padding: 30px;
       border-radius: 10px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       margin-bottom: 20px;
     }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      font-size: 16px;
-      border: 1px solid #bdc3c7;
-      border-radius: 5px;
-    }
-    input[readonly], input[disabled] {
-      background: #f0f0f0;
-      color: #555;
-      cursor: not-allowed;
-    }
+
     button {
       padding: 14px 40px;
       font-size: 17px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-      margin: 10px 5px;
     }
-    #calculateBtn, #submitBtn {
-      background: #3498db;
+
+    #calculateBtn,
+    #submitBtn {
+      background-color: var(--primary-blue);
     }
-    #calculateBtn:hover, #submitBtn:hover {
-      background: #2980b9;
+
+    #calculateBtn:hover,
+    #submitBtn:hover {
+      background-color: var(--primary-blue-hover);
     }
+
     #payBtn {
-      background: #27ae60;
-      display: none; /* Hidden until submit */
+      background-color: var(--success-green);
+      display: none;
     }
+
     #payBtn:hover {
-      background: #219653;
+      background-color: var(--success-green-hover);
     }
+
     #reviewSection {
       display: none;
       background: #e8f4f8;
@@ -73,62 +52,32 @@
       border-radius: 8px;
       margin-top: 20px;
     }
+
     .calculation-row {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
       border-bottom: 1px solid #ddd;
     }
+
     .calculation-row:last-child {
       border-bottom: none;
       font-weight: bold;
       font-size: 1.1em;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 12px;
-      border: 1px solid #dfe6e9;
-      text-align: left;
-    }
-    th {
-      background: #ecf0f1;
-    }
+
     .back-link {
-      display: block;
       margin-top: 40px;
-      text-align: center;
-      color: #2980b9;
-      text-decoration: none;
+    }
+
+    .back-link a {
       font-weight: bold;
-    }
-    .back-link:hover {
-      text-decoration: underline;
-    }
-    @keyframes slideIn {
-      from { transform: translateX(120%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
     }
   </style>
 </head>
 <body>
 
-  <a href="/" style="
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    padding: 10px 20px;
-    background: #2980b9;
-    color: white;
-    font-weight: bold;
-    text-decoration: none;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    z-index: 1000;
-  ">Home</a>
+  <a href="/" class="home-btn">Home</a>
 
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99" style="display: block; margin: 20px auto;">
 
@@ -154,8 +103,8 @@
       </div>
 
       <div class="form-group">
-        <label for="monthlySalary">Monthly Salary (Auto-filled, INR)</label>
-        <input type="number" id="monthlySalary" readonly step="0.01">
+        <label for="monthlySalary">Monthly Salary (INR)</label>
+        <input type="number" id="monthlySalary" step="0.01">
       </div>
 
       <div class="form-group">
@@ -233,7 +182,6 @@
         if (result.status === 'success' && result.employee) {
           document.getElementById('name').value = `${result.employee.first_name || ''} ${result.employee.last_name || ''}`.trim();
           document.getElementById('email').value = result.employee.email || '';
-          document.getElementById('monthlySalary').value = result.employee.salary || 0;
           showToast('Employee details loaded');
         } else {
           showToast('Employee not found', 'error');
@@ -277,7 +225,7 @@
       const monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 0;
 
       if (!empid || !payTerm || monthlySalary <= 0) {
-        showMessage('Please enter Employee ID, select Pay Term, and ensure salary is loaded', 'error');
+        showMessage('Please enter Employee ID, select Pay Term, and provide a valid salary', 'error');
         return;
       }
 

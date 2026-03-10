@@ -1,0 +1,531 @@
+/* ============================================
+   PAYDAY APPLICATION - SHARED STYLES
+   ============================================ */
+
+/* ============ ANIMATIONS ============ */
+@keyframes slideIn {
+  from { 
+    transform: translateX(120%); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1; 
+  }
+}
+
+/* ============ COLORS (CSS VARIABLES) ============ */
+:root {
+  --primary-blue: #2980b9;
+  --primary-blue-hover: #2471a3;
+  --secondary-orange: #f39c12;
+  --secondary-orange-hover: #e67e22;
+  --success-green: #27ae60;
+  --success-green-hover: #219653;
+  --error-red: #e74c3c;
+  --bg-light: #f9f9f9;
+  --bg-white: #ffffff;
+  --text-dark: #333333;
+  --text-gray: #555555;
+  --text-light-gray: #7f8c8d;
+  --border-color: #bdc3c7;
+  --alert-success-bg: #d4edda;
+  --alert-success-text: #155724;
+  --alert-error-bg: #f8d7da;
+  --alert-error-text: #721c24;
+  --table-header-bg: #ecf0f1;
+  --table-header-text: #2c3e50;
+  --input-disabled-bg: #f0f0f0;
+  --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  --button-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ============ GLOBAL STYLES ============ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+  margin: 0;
+  padding: 0;
+}
+
+/* ============ CONTAINER LAYOUTS ============ */
+.main-container {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.form-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+/* ============ HEADER & TYPOGRAPHY ============ */
+h1, h2 {
+  text-align: center;
+  color: var(--text-dark);
+}
+
+h1 {
+  font-size: 2.8em;
+  margin: 20px 0;
+}
+
+h2 {
+  font-size: 1.8em;
+  margin: 20px 0;
+}
+
+.subtitle {
+  font-size: 1.8em;
+  color: var(--text-light-gray);
+  font-weight: 500;
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: var(--text-dark);
+}
+
+/* ============ FORM ELEMENTS ============ */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-dark);
+  background-color: var(--bg-white);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 4px rgba(41, 128, 185, 0.3);
+}
+
+input[type="number"] {
+  appearance: none;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[readonly],
+input[disabled] {
+  background-color: var(--input-disabled-bg);
+  color: var(--text-gray);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+/* ============ FORM GROUPS ============ */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* ============ BUTTONS - General ============ */
+button {
+  padding: 12px 30px;
+  font-size: 17px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  font-weight: 500;
+  outline: none;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Full-width buttons (form actions) */
+.action-btn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 15px;
+}
+
+/* ============ BUTTON COLORS ============ */
+/* Primary Blue */
+#searchBtnMain,
+.btn-primary {
+  background-color: var(--primary-blue);
+}
+
+#searchBtnMain:hover,
+.btn-primary:hover {
+  background-color: var(--primary-blue-hover);
+}
+
+/* Success Green */
+#addBtnMain,
+.btn-success,
+.action-btn.success {
+  background-color: var(--success-green);
+}
+
+#addBtnMain:hover,
+.btn-success:hover,
+.action-btn.success:hover {
+  background-color: var(--success-green-hover);
+}
+
+/* Orange / Secondary */
+.action-btn.secondary,
+button[type="submit"],
+.btn-secondary {
+  background-color: var(--secondary-orange);
+}
+
+.action-btn.secondary:hover,
+button[type="submit"]:hover,
+.btn-secondary:hover {
+  background-color: var(--secondary-orange-hover);
+}
+
+/* Error Red */
+#clearBtn,
+.btn-danger {
+  background-color: var(--error-red);
+}
+
+#clearBtn:hover,
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+/* ============ BUTTON GROUPS ============ */
+.buttons {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.buttons button {
+  margin: 0 20px;
+}
+
+/* ============ NAVIGATION ============ */
+.back-link {
+  display: block;
+  margin-top: 40px;
+  text-align: center;
+}
+
+.back-link a {
+  color: var(--primary-blue);
+  text-decoration: none;
+  font-weight: bold;
+  transition: text-decoration 0.2s;
+}
+
+.back-link a:hover {
+  text-decoration: underline;
+}
+
+.home-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background-color: var(--primary-blue);
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 8px;
+  box-shadow: var(--button-shadow);
+  z-index: 1000;
+  transition: background 0.2s ease;
+}
+
+.home-btn:hover {
+  background-color: var(--primary-blue-hover);
+}
+
+/* ============ CONTAINERS ============ */
+.form-container,
+.search-container {
+  background-color: var(--bg-white);
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: var(--card-shadow);
+  margin-top: 30px;
+}
+
+.search-container {
+  display: none;
+}
+
+/* ============ MESSAGES & ALERTS ============ */
+#message,
+.message {
+  margin-top: 25px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.success {
+  background-color: var(--alert-success-bg);
+  color: var(--alert-success-text);
+}
+
+.error {
+  background-color: var(--alert-error-bg);
+  color: var(--alert-error-text);
+}
+
+/* ============ TABLES ============ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 30px;
+  background-color: var(--bg-white);
+}
+
+th {
+  padding: 12px;
+  border: 1px solid #dfe6e9;
+  text-align: left;
+  background-color: var(--table-header-bg);
+  color: var(--table-header-text);
+  font-weight: bold;
+}
+
+td {
+  padding: 12px;
+  border: 1px solid #dfe6e9;
+  text-align: left;
+}
+
+tr:hover {
+  background-color: #f5f5f5;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* ============ TOAST NOTIFICATIONS ============ */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  box-shadow: var(--toast-shadow);
+  animation: slideIn 0.4s ease-out;
+  z-index: 2000;
+  min-width: 250px;
+  text-align: center;
+}
+
+.toast.success {
+  background-color: var(--success-green);
+  color: white;
+}
+
+.toast.error {
+  background-color: var(--error-red);
+  color: white;
+}
+
+/* ============ UTILITY CLASSES ============ */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.mt-10 { margin-top: 10px; }
+.mt-15 { margin-top: 15px; }
+.mt-20 { margin-top: 20px; }
+.mt-30 { margin-top: 30px; }
+.mt-40 { margin-top: 40px; }
+
+.mb-10 { margin-bottom: 10px; }
+.mb-15 { margin-bottom: 15px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-30 { margin-bottom: 30px; }
+
+.p-10 { padding: 10px; }
+.p-20 { padding: 20px; }
+.p-30 { padding: 30px; }
+.p-40 { padding: 40px; }
+
+.rounded { border-radius: 6px; }
+.rounded-lg { border-radius: 10px; }
+.rounded-full { border-radius: 50%; }
+
+.shadow { box-shadow: var(--card-shadow); }
+.shadow-lg { box-shadow: var(--toast-shadow); }
+
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+.hidden { display: none; }
+.visible { display: block; }
+
+/* ============ RESPONSIVE DESIGN ============ */
+@media (max-width: 768px) {
+  body {
+    margin: 20px auto;
+    padding: 10px;
+  }
+
+  .main-container,
+  .form-container {
+    margin: 20px auto;
+    padding: 10px;
+  }
+
+  button {
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+
+  .buttons button {
+    margin: 10px 5px;
+    padding: 10px 15px;
+  }
+
+  h1 {
+    font-size: 2em;
+  }
+
+  h2 {
+    font-size: 1.4em;
+  }
+
+  .form-container,
+  .search-container {
+    padding: 20px;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  table {
+    font-size: 14px;
+  }
+
+  th, td {
+    padding: 8px;
+  }
+
+  .home-btn {
+    top: 10px;
+    left: 10px;
+    padding: 8px 15px;
+    font-size: 12px;
+  }
+
+  .toast {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    margin: 10px auto;
+    padding: 5px;
+  }
+
+  .main-container,
+  .form-container {
+    margin: 10px auto;
+    padding: 5px;
+  }
+
+  h1 {
+    font-size: 1.6em;
+    margin: 10px 0;
+  }
+
+  h2 {
+    font-size: 1.2em;
+    margin: 10px 0;
+  }
+
+  button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .buttons button {
+    margin: 5px;
+    display: block;
+    width: 100%;
+  }
+
+  label {
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 5px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+}

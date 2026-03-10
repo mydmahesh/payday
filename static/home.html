@@ -4,13 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pay Day - Employee Management</title>
-
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Home page specific styles */
     * {
       box-sizing: border-box;
     }
 
-     body {
+    body {
       margin: 0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background: linear-gradient(135deg, #eef2f7, #d6e0f0);
@@ -19,7 +20,6 @@
       align-items: center;
       justify-content: center;
     }
-
 
     .container {
       background: #ffffff;
@@ -62,12 +62,12 @@
       text-decoration: none;
       border-radius: 12px;
       transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
 
     .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
     }
 
     .btn-employee {
@@ -77,13 +77,13 @@
     .btn-employee:hover {
       background: #1e4ed8;
     }
-	
-	.btn-personal{
+
+    .btn-personal {
       background: #325e3b;
     }
 
     .btn-personal:hover {
-      background: #4e4ed8;
+      background: #2a4d31;
     }
 
     .btn-bank {
@@ -109,15 +109,22 @@
     .btn-salary:hover {
       background: #b45309;
     }
-	
-	.btn-tax {
-	  background: #0f766e;
-	}
-	
-	.btn-tax:hover {
-	  background: #0d5f59;
-	}
 
+    .btn-tax {
+      background: #0f766e;
+    }
+
+    .btn-tax:hover {
+      background: #0d5f59;
+    }
+
+    .btn-reports {
+      background: #c026d3;
+    }
+
+    .btn-reports:hover {
+      background: #a21caf;
+    }
 
     @media (max-width: 480px) {
       .container {
@@ -128,8 +135,6 @@
         font-size: 2.1rem;
       }
     }
-	
-	
   </style>
 </head>
 
@@ -147,7 +152,7 @@
 	<a href="/tax-deductions" class="btn btn-tax">Tax Calculations</a>
 	<a href="/salary" class="btn btn-salary">Salary</a>	
 	<a href="/bank-details" class="btn btn-bank">Bank Details</a>	
-	<a href="/reports" class="btn btn-reports" style="background: #c026d3;">Reports</a>
+	<a href="/reports" class="btn btn-reports">Reports</a>
 	</div>
 	
   </div>

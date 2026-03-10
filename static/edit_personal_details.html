@@ -4,41 +4,66 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Edit Personal Details - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
-    /* Reuse same styles as personal_details.html */
-    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
-    .header { text-align: center; margin-bottom: 40px; }
-    .header h1 { margin: 0; font-size: 2.8em; color: #2c3e50; font-weight: bold; }
-    .form-group { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 8px; font-weight: bold; }
-    input, select { width: 100%; padding: 12px; box-sizing: border-box; font-size: 16px; border: 1px solid #bdc3c7; border-radius: 5px; }
-    input[readonly], input[disabled] { background: #f0f0f0; color: #555; cursor: not-allowed; }
-    .action-btn { width: 100%; padding: 14px; font-size: 17px; margin-top: 15px; border-radius: 6px; background:#e67e22; color:white; border:none; cursor:pointer; }
-    #message { margin-top: 25px; padding: 12px; border-radius: 6px; text-align: center; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
+    /* Page-specific styles for Edit Personal Details */
+    body {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      text-align: center;
+    }
+
+    .header .subtitle {
+      font-size: 1.8em;
+      font-weight: 500;
+    }
+
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
+    }
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
+    }
+
+    .action-btn {
+      background-color: var(--secondary-orange);
+    }
+
+    .action-btn:hover {
+      background-color: var(--secondary-orange-hover);
+    }
+
+    #message {
+      margin-top: 25px;
+    }
   </style>
 </head>
 <body>
 
-<div class="back-link">
-  <a href="/personal_details" style="color:#2980b9; text-decoration:none; font-weight:bold;">← Back to Personal Details</a>
-</div>
-<a href="/" style="
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 10px 20px;
-  background: #2980b9;
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-">
-   Home
+<a href="/" class="home-btn">Home</a>
+
+<div class="header">
+  <a href="/" class="logo-link">
+  <img src="images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
 </a>
+</div>
+
+<div class="back-link" style="position: fixed; right: 20px;">
+  <a href="/personal_details" class="back-link" style="margin-top: 30px;">← Back to Personal Details</a>
+</div>
 
 <div class="header">
   <h1>Edit Personal Details</h1>

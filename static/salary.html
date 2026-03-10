@@ -4,120 +4,80 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Salary & Payslips - Pay Day</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
+    /* Page-specific styles for Salary */
     body {
-      font-family: Arial, sans-serif;
       max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
-      background: #f9f9f9;
     }
-    h1, h2 {
-      text-align: center;
-      color: #333;
-    }
+
     .form-group {
       margin-bottom: 25px;
     }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      font-size: 16px;
-      border: 1px solid #bdc3c7;
-      border-radius: 5px;
-    }
-    input[readonly], input[disabled] {
-      background: #f0f0f0;
-      color: #555;
-      cursor: not-allowed;
-    }
-    button {
-      padding: 14px 40px;
-      font-size: 17px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-      margin: 10px 0;
-    }
+
     #downloadBtn {
-      background: #27ae60;
+      background-color: var(--success-green);
     }
+
     #downloadBtn:hover {
-      background: #219653;
+      background-color: var(--success-green-hover);
     }
+
     #searchBtn {
-      background: #3498db;
+      background-color: var(--primary-blue);
     }
+
     #searchBtn:hover {
-      background: #2980b9;
+      background-color: var(--primary-blue-hover);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 30px;
-      background: white;
-    }
-    th, td {
-      padding: 12px;
-      border: 1px solid #dfe6e9;
-      text-align: left;
-    }
-    th {
-      background: #ecf0f1;
-    }
+
     .download-link {
-      color: #27ae60;
+      color: var(--success-green);
       text-decoration: none;
       font-weight: bold;
     }
+
     .download-link:hover {
       text-decoration: underline;
     }
-    .back-link {
-      display: block;
-      margin-top: 40px;
-      text-align: center;
-      color: #2980b9;
-      text-decoration: none;
-      font-weight: bold;
+
+    .payslip-container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      margin-top: 30px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
-    .back-link:hover {
-      text-decoration: underline;
+
+    .payslip-form {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+
+    .payslip-form > div {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .payslip-buttons {
+      margin-top: 30px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-<a href="/" style="
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 10px 20px;
-  background: #2980b9;
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-">
-   Home
-</a>
+<a href="/" class="home-btn">Home</a>
 <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
   <h1>Salary & Payslips</h1>
 
   <!-- Download Payslip Section -->
-  <div style="background: white; padding: 40px; border-radius: 12px; margin-top: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+  <div class="payslip-container">
     <h2>Download Payslips</h2>
 
-    <div style="display: flex; gap: 30px; flex-wrap: wrap;">
-      <div class="form-group" style="flex: 1; min-width: 300px;">
+    <div class="payslip-form">
         <label for="empid">Employee ID *</label>
         <input type="number" id="empid" required placeholder="Enter Employee ID">
       </div>
@@ -152,7 +112,7 @@
       </div>
     </div>
 
-    <div style="margin-top: 30px; text-align: center;">
+    <div class="payslip-buttons">
       <button id="downloadBtn">Download Payslip</button>
     </div>
 
