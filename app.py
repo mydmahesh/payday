@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -530,7 +530,8 @@ def pay_structure_list():
     ps.job_id,
     ps.pay_group,
     ps.updated_at,
-    ps.notes
+    ps.notes,
+    e.hire_date
 FROM pay_structure ps
 LEFT JOIN pd_employees e ON ps.empid = e.empid
             WHERE ps.empid = ?
@@ -546,7 +547,8 @@ LEFT JOIN pd_employees e ON ps.empid = e.empid
     ps.job_id,
     ps.pay_group,
     ps.updated_at,
-    ps.notes
+    ps.notes,
+    e.hire_date
 FROM pay_structure ps
 LEFT JOIN pd_employees e ON ps.empid = e.empid
             ORDER BY ps.updated_at DESC
@@ -555,7 +557,39 @@ LEFT JOIN pd_employees e ON ps.empid = e.empid
 
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
-    records = [dict(zip(columns, row)) for row in rows]
+    records = []
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    for row in rows:
+        record = dict(zip(columns, row))
+        hire_date_str = record.get('hire_date')
+        pay_term = record.get('pay_term')
+        next_due = None
+        if hire_date_str and pay_term:
+            try:
+                hire_date = datetime.fromisoformat(hire_date_str).date()
+                if pay_term == 'One-time':
+                    next_due = hire_date if hire_date >= today else None
+                elif pay_term == 'daily':
+                    next_due = today  # Daily is due every day, so today
+                elif pay_term == 'weekly':
+                    period = 7
+                elif pay_term == 'bi-weekly':
+                    period = 14
+                elif pay_term == 'monthly':
+                    period = 30  # Approximate
+                if pay_term not in ['One-time', 'daily'] and period:
+                    days_since_hire = (today - hire_date).days
+                    periods_passed = days_since_hire // period
+                    candidate_due = hire_date + timedelta(days=(periods_passed + 1) * period)
+                    if candidate_due < today:
+                        next_due = hire_date + timedelta(days=(periods_passed + 2) * period)
+                    else:
+                        next_due = candidate_due
+            except:
+                pass
+        record['next_due_date'] = next_due.isoformat() if next_due else None
+        records.append(record)
 
     conn.close()
 

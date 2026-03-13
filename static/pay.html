@@ -13,6 +13,15 @@
       padding: 20px;
     }
 
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      text-align: center;
+    }
+
     .container {
       background: white;
       padding: 30px;
@@ -76,17 +85,43 @@
 <body>
 
   <a href="/" class="home-btn">Home</a>
-
-  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99" style="display: block; margin: 20px auto;">
-
-  <h1>Employee Pay - Due Today/Tomorrow</h1>
-
+ <div class="header">
+  <a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
+  <h1>Employee Pay - Dues</h1>
+</div>
   <div class="container">
-    <h2>Employees with Pay Due</h2>
-    <p>Displaying employees whose pay term is due for today or tomorrow, with calculated pay amounts.</p>
+    
+    <p>Displaying all employees with their pay structures, next due dates, and calculated pay amounts.</p>
+
+    <div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+      <div>
+        <label for="filterPayTerm">Filter by Pay Term:</label>
+        <select id="filterPayTerm">
+          <option value="">All</option>
+          <option value="One-time">One-time</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="bi-weekly">Bi-Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div>
+        <label for="filterPayGroup">Filter by Pay Group:</label>
+        <select id="filterPayGroup">
+          <option value="">All</option>
+          <option value="A">A – Senior Management</option>
+          <option value="B">B – Management</option>
+          <option value="C">C – Regular</option>
+          <option value="D">D – Contract / Trainee</option>
+          <option value="E">E – Support Staff</option>
+        </select>
+      </div>
+    </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <button id="loadBtn">Load Due Pays</button>
+      <button id="loadBtn">Load All Dues</button>
     </div>
 
     <table id="payTable" style="display: none;">
@@ -95,8 +130,10 @@
           <th>Emp ID</th>
           <th>Name</th>
           <th>Pay Term</th>
+          <th>Pay Group</th>
           <th>Base Salary</th>
           <th>Calculated Pay Amount</th>
+          <th>Next Due Date</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -135,29 +172,17 @@
       setTimeout(() => { msg.style.display = 'none'; }, 5000);
     }
 
-    // Load due pays
+    // Load all pays
+    let allStructures = [];
     document.getElementById('loadBtn').addEventListener('click', async () => {
       try {
         const response = await fetch('/pay_structure_list');
         const result = await response.json();
         if (result.status === 'success') {
-          const tbody = document.getElementById('payTableBody');
-          tbody.innerHTML = '';
-          result.structures.forEach(record => {
-            const payAmount = calculatePayAmount(record.salary, record.pay_term);
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${record.empid}</td>
-              <td>${record.name}</td>
-              <td>${record.pay_term}</td>
-              <td>₹${Number(record.salary).toLocaleString('en-IN')}</td>
-              <td>₹${payAmount.toLocaleString('en-IN')}</td>
-              <td><button class="pay-btn" data-empid="${record.empid}">Pay Now</button></td>
-            `;
-            tbody.appendChild(tr);
-          });
+          allStructures = result.structures;
+          displayStructures(allStructures);
           document.getElementById('payTable').style.display = 'table';
-          showToast('Due pays loaded');
+          showToast(`${allStructures.length} pays loaded`);
         } else {
           showMessage('Failed to load pay structures', 'error');
         }
@@ -165,6 +190,42 @@
         showMessage('Error loading data', 'error');
       }
     });
+
+    function displayStructures(structures) {
+      const tbody = document.getElementById('payTableBody');
+      tbody.innerHTML = '';
+      structures.forEach(record => {
+        const payAmount = calculatePayAmount(record.salary, record.pay_term);
+        const nextDue = record.next_due_date ? new Date(record.next_due_date).toLocaleDateString() : 'N/A';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${record.empid}</td>
+          <td>${record.name}</td>
+          <td>${record.pay_term}</td>
+          <td>${record.pay_group || '-'}</td>
+          <td>₹${Number(record.salary).toLocaleString('en-IN')}</td>
+          <td>₹${payAmount.toLocaleString('en-IN')}</td>
+          <td>${nextDue}</td>
+          <td><button class="pay-btn" data-empid="${record.empid}">Pay Now</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Filter handlers
+    document.getElementById('filterPayTerm').addEventListener('change', applyFilters);
+    document.getElementById('filterPayGroup').addEventListener('change', applyFilters);
+
+    function applyFilters() {
+      const payTermFilter = document.getElementById('filterPayTerm').value;
+      const payGroupFilter = document.getElementById('filterPayGroup').value;
+      const filtered = allStructures.filter(record => {
+        const matchesTerm = !payTermFilter || record.pay_term === payTermFilter;
+        const matchesGroup = !payGroupFilter || record.pay_group === payGroupFilter;
+        return matchesTerm && matchesGroup;
+      });
+      displayStructures(filtered);
+    }
 
     function calculatePayAmount(salary, payTerm) {
       const sal = parseFloat(salary) || 0;
