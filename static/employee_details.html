@@ -134,7 +134,7 @@
   Clear Form
 </button>
   
-  <div id="newEmpIdContainer" style="float: right;display:none; inline-flex; align-items: center; gap: 15px; margin-left: 20px;">
+  <div id="newEmpIdContainer" style="float: right; display:none;  align-items: center; gap: 15px; margin-left: 20px;">
   <label for="newEmpId" style="font-weight: bold; color: #2c3e50;">Your Emp ID:</label>
   <input type="text" id="newEmpId" readonly 
          style="width: 140px; background:#e9ecef; font-weight:bold; text-align:center; font-size:1.3em; padding:8px; border:1px solid #ced4da; border-radius:6px; cursor:not-allowed;">
@@ -346,7 +346,7 @@ document.getElementById('doSearchBtn').addEventListener('click', async () => {
           <td>${emp.grade || ''}</td>
           <td>${emp.is_active ? 'Yes' : 'No'}</td>
           <td>
-            <a href="/static/edit.html?id=${emp.empid}"
+            <a href="/static/edit_employee_details.html?id=${emp.empid}"
                style="color: #e67e22; font-weight: bold; text-decoration: none;">
               Edit
             </a>

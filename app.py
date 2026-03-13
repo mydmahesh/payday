@@ -504,9 +504,139 @@ def get_employee_for_compensation(empid):
             "message": str(e)
         }), 400
 
-@app.route('/salary')
-def salary():
-    return app.send_static_file('salary.html')
+# Route to serve the pay_structure.html page (static file)
+@app.route('/pay_structure')
+def serve_pay_structure():
+    return app.send_static_file('pay_structure.html')
+
+
+# ----------------------------------------------------------------
+#  GET /pay_structure_list   → returns list for search/table
+# ----------------------------------------------------------------
+@app.route('/pay_structure_list', methods=['GET'])
+def pay_structure_list():
+    empid_filter = request.args.get('empid')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if empid_filter:
+        cursor.execute("""
+            SELECT 
+    ps.empid,
+    e.first_name || ' ' || e.last_name AS name,
+    ps.pay_term,
+    ps.salary,
+    ps.job_id,
+    ps.pay_group,
+    ps.updated_at
+FROM pay_structure ps
+LEFT JOIN pd_employees e ON ps.empid = e.empid
+            WHERE ps.empid = ?
+            ORDER BY ps.empid
+        """, (empid_filter,))
+    else:
+        cursor.execute("""
+            SELECT 
+    ps.empid,
+    e.first_name || ' ' || e.last_name AS name,
+    ps.pay_term,
+    ps.salary,
+    ps.job_id,
+    ps.pay_group,
+    ps.updated_at
+FROM pay_structure ps
+LEFT JOIN pd_employees e ON ps.empid = e.empid
+            ORDER BY ps.updated_at DESC
+            LIMIT 500
+        """)
+
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    records = [dict(zip(columns, row)) for row in rows]
+
+    conn.close()
+
+    return jsonify({
+        "status": "success",
+        "structures": records
+    })
+
+
+# ----------------------------------------------------------------
+#  POST /save_pay_structure   → create or update record
+# ----------------------------------------------------------------
+@app.route('/save_pay_structure', methods=['POST'])
+def save_pay_structure():
+    try:
+        data = request.get_json()
+
+        required_fields = ['empid', 'name', 'pay_term', 'salary']
+        for field in required_fields:
+            if field not in data or data[field] is None or data[field] == "":
+                return jsonify({
+                    "status": "error",
+                    "message": f"Missing or empty required field: {field}"
+                }), 400
+
+        empid        = int(data['empid'])
+        name         = str(data['name']).strip()
+        pay_term     = str(data['pay_term']).strip().lower()
+        salary       = float(data['salary'])
+        job_id       = data.get('job_id', '').strip() or None
+        pay_group    = data.get('pay_group', '').strip() or None
+        notes        = data.get('notes', '').strip() or None
+
+        # Basic validation
+        if salary < 0:
+            return jsonify({"status": "error", "message": "Salary cannot be negative"}), 400
+
+        valid_pay_terms = {'One-time', 'daily', 'weekly', 'bi-weekly', 'monthly'}
+        if pay_term not in valid_pay_terms:
+            return jsonify({
+                "status": "error",
+                "message": f"Invalid pay_term. Allowed values: {', '.join(valid_pay_terms)}"
+            }), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if employee exists in pd_employees
+        cursor.execute("SELECT empid FROM pd_employees WHERE empid = ?", (empid,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"status": "error", "message": "Employee not found in pd_employees"}), 404
+
+        # UPSERT (insert or replace)
+        cursor.execute("""
+            INSERT OR REPLACE INTO pay_structure 
+            (empid, name, pay_term, salary, job_id, pay_group, updated_at, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            empid,
+            name,
+            pay_term,
+            salary,
+            job_id,
+            pay_group,
+            datetime.now().isoformat(),
+            notes
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Pay structure for employee {empid} ({name}) saved/updated successfully."
+        })
+
+    except ValueError as ve:
+        return jsonify({"status": "error", "message": f"Invalid input format: {str(ve)}"}), 400
+    except sqlite3.Error as se:
+        return jsonify({"status": "error", "message": f"Database error: {str(se)}"}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/tax-deductions')
 def tax_deductions():

@@ -102,9 +102,6 @@
     #searchMessage {
       margin-top: 20px;
       padding: 12px;
-    }
-  </style>
-</head>
       border-radius: 6px;
       text-align: center;
     }
@@ -164,7 +161,7 @@
 </a>
 
 <div class="back-link">
-  <a href="/"style="
+  <a href="/" style="
   position: fixed;
   top: 20px;
   left: 20px;
@@ -502,7 +499,7 @@
     const monthlyInputs = [
       'basic_monthly', 'monthly_performance', 'performance_bonus', 'city_allowance',
       'hra', 'lta', 'food_card', 'communication', 'personal_allowance',
-      'health_insurance', 'provident_fund', 'gratuity', 'overtime_pay', 'transport_allowance'
+      'health_insurance', 'provident_fund', 'gratuity'
     ];
 
     monthlyInputs.forEach(id => {
@@ -551,13 +548,10 @@
           const healthInsurance = parseFloat(rec.health_insurance) || 0;
           const providentFund = parseFloat(rec.provident_fund) || 0;
           const gratuity = parseFloat(rec.gratuity) || 0;
-          const overtimePay = parseFloat(rec.overtime_pay) || 0;
-          const transportAllowance = parseFloat(rec.transport_allowance) || 0;
 
           const grossBobMonthly = hra + lta + foodCard + communication + personalAllowance;
           const totalGrossMonthly = basicMonthly + monthlyPerformance + performanceBonus + cityAllowance +
-                                    grossBobMonthly + healthInsurance + providentFund + gratuity +
-                                    overtimePay + transportAllowance;
+                                    grossBobMonthly + healthInsurance + providentFund + gratuity;
           const totalGrossAnnual = totalGrossMonthly * 12;
 
           const tr = document.createElement('tr');
@@ -621,8 +615,6 @@ document.addEventListener('click', async (e) => {
         if (document.getElementById('health_insurance')) document.getElementById('health_insurance').value = rec.health_insurance || '';
         if (document.getElementById('provident_fund')) document.getElementById('provident_fund').value = rec.provident_fund || '';
         if (document.getElementById('gratuity')) document.getElementById('gratuity').value = rec.gratuity || '';
-        if (document.getElementById('overtime_pay')) document.getElementById('overtime_pay').value = rec.overtime_pay || '';
-        if (document.getElementById('transport_allowance')) document.getElementById('transport_allowance').value = rec.transport_allowance || '';
 
         // Trigger calculations so Annual values appear immediately
         updateAllCalculations();
@@ -663,9 +655,6 @@ document.addEventListener('click', async (e) => {
       health_insurance: parseFloat(document.getElementById('health_insurance').value) || 0,
       provident_fund: parseFloat(document.getElementById('provident_fund').value) || 0,
       gratuity: parseFloat(document.getElementById('gratuity').value) || 0,
-
-      overtime_pay: parseFloat(document.getElementById('overtime_pay').value) || 0,
-      transport_allowance: parseFloat(document.getElementById('transport_allowance').value) || 0,
 
       currency: 'INR',
       pay_period: 'Monthly'
