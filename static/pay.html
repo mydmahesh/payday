@@ -8,7 +8,7 @@
   <style>
     /* Page-specific styles for Pay */
     body {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 40px auto;
       padding: 20px;
     }
@@ -26,44 +26,42 @@
       font-size: 17px;
     }
 
-    #calculateBtn,
-    #submitBtn {
+    #loadBtn {
       background-color: var(--primary-blue);
     }
 
-    #calculateBtn:hover,
-    #submitBtn:hover {
+    #loadBtn:hover {
       background-color: var(--primary-blue-hover);
     }
 
-    #payBtn {
-      background-color: var(--success-green);
-      display: none;
-    }
-
-    #payBtn:hover {
-      background-color: var(--success-green-hover);
-    }
-
-    #reviewSection {
-      display: none;
-      background: #e8f4f8;
-      padding: 20px;
-      border-radius: 8px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 20px;
     }
 
-    .calculation-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #ddd;
+    th, td {
+      padding: 12px;
+      border: 1px solid #dfe6e9;
+      text-align: left;
     }
 
-    .calculation-row:last-child {
-      border-bottom: none;
+    th {
+      background: #ecf0f1;
       font-weight: bold;
-      font-size: 1.1em;
+    }
+
+    .pay-btn {
+      background-color: var(--success-green);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .pay-btn:hover {
+      background-color: var(--success-green-hover);
     }
 
     .back-link {
@@ -81,63 +79,29 @@
 
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99" style="display: block; margin: 20px auto;">
 
-  <h1>Employee Pay</h1>
+  <h1>Employee Pay - Due Today/Tomorrow</h1>
 
   <div class="container">
-    <h2>Enter Pay Details</h2>
+    <h2>Employees with Pay Due</h2>
+    <p>Displaying employees whose pay term is due for today or tomorrow, with calculated pay amounts.</p>
 
-    <form id="payForm">
-      <div class="form-group">
-        <label for="empid">Employee ID *</label>
-        <input type="number" id="empid" required placeholder="Enter Employee ID">
-      </div>
-
-      <div class="form-group">
-        <label for="name">Name (Auto-filled)</label>
-        <input type="text" id="name" readonly>
-      </div>
-
-      <div class="form-group">
-        <label for="email">Email (Auto-filled)</label>
-        <input type="email" id="email" readonly>
-      </div>
-
-      <div class="form-group">
-        <label for="monthlySalary">Monthly Salary (INR)</label>
-        <input type="number" id="monthlySalary" step="0.01">
-      </div>
-
-      <div class="form-group">
-        <label for="payTerm">Pay Term *</label>
-        <select id="payTerm" required>
-          <option value="">Select Pay Term</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="bi-weekly">Bi-Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-      </div>
-
-      <div style="text-align: center; margin-top: 20px;">
-        <button type="button" id="calculateBtn">Calculate Pay</button>
-      </div>
-    </form>
-
-    <!-- Review Section (Hidden initially) -->
-    <div id="reviewSection">
-      <h3>Pay Calculation Review</h3>
-      <div id="calculationDisplay"></div>
-      <div style="text-align: center; margin-top: 20px;">
-        <button type="button" id="submitBtn">Submit & Lock Details</button>
-      </div>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <button id="loadBtn">Load Due Pays</button>
     </div>
 
-    <!-- Pay Section (Hidden until locked) -->
-    <div id="paySection" style="display: none; text-align: center; margin-top: 20px;">
-      <h3>Ready to Pay</h3>
-      <p>Details are locked. Click below to process payment.</p>
-      <button id="payBtn">Pay Now</button>
-    </div>
+    <table id="payTable" style="display: none;">
+      <thead>
+        <tr>
+          <th>Emp ID</th>
+          <th>Name</th>
+          <th>Pay Term</th>
+          <th>Base Salary</th>
+          <th>Calculated Pay Amount</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="payTableBody"></tbody>
+    </table>
 
     <div id="message" style="margin-top: 20px; padding: 12px; border-radius: 6px; text-align: center; display: none;"></div>
   </div>
@@ -171,102 +135,62 @@
       setTimeout(() => { msg.style.display = 'none'; }, 5000);
     }
 
-    // Auto-fill employee details on empid blur
-    document.getElementById('empid').addEventListener('blur', async () => {
-      const empid = document.getElementById('empid').value.trim();
-      if (!empid || isNaN(empid)) return;
-
+    // Load due pays
+    document.getElementById('loadBtn').addEventListener('click', async () => {
       try {
-        const response = await fetch(`/employee/${empid}`);
+        const response = await fetch('/pay_structure_list');
         const result = await response.json();
-        if (result.status === 'success' && result.employee) {
-          document.getElementById('name').value = `${result.employee.first_name || ''} ${result.employee.last_name || ''}`.trim();
-          document.getElementById('email').value = result.employee.email || '';
-          showToast('Employee details loaded');
+        if (result.status === 'success') {
+          const tbody = document.getElementById('payTableBody');
+          tbody.innerHTML = '';
+          result.structures.forEach(record => {
+            const payAmount = calculatePayAmount(record.salary, record.pay_term);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${record.empid}</td>
+              <td>${record.name}</td>
+              <td>${record.pay_term}</td>
+              <td>₹${Number(record.salary).toLocaleString('en-IN')}</td>
+              <td>₹${payAmount.toLocaleString('en-IN')}</td>
+              <td><button class="pay-btn" data-empid="${record.empid}">Pay Now</button></td>
+            `;
+            tbody.appendChild(tr);
+          });
+          document.getElementById('payTable').style.display = 'table';
+          showToast('Due pays loaded');
         } else {
-          showToast('Employee not found', 'error');
+          showMessage('Failed to load pay structures', 'error');
         }
       } catch (err) {
-        showToast('Failed to fetch employee', 'error');
+        showMessage('Error loading data', 'error');
       }
     });
 
-    // Calculate pay based on term
-    function calculatePay(monthlySalary, payTerm) {
-      let payAmount = 0;
-      let description = '';
+    function calculatePayAmount(salary, payTerm) {
+      const sal = parseFloat(salary) || 0;
       switch (payTerm) {
+        case 'One-time':
+          return sal;
         case 'daily':
-          payAmount = monthlySalary / 30;
-          description = 'Monthly / 30 days';
-          break;
+          return sal; // Assuming daily pay is the amount
         case 'weekly':
-          payAmount = monthlySalary / 4.33; // Approx. weeks in a month
-          description = 'Monthly / 4.33 weeks';
-          break;
+          return sal;
         case 'bi-weekly':
-          payAmount = monthlySalary / 2;
-          description = 'Monthly / 2';
-          break;
+          return sal;
         case 'monthly':
-          payAmount = monthlySalary;
-          description = 'Full monthly salary';
-          break;
+          return sal;
         default:
-          return { amount: 0, desc: 'Invalid term' };
+          return sal;
       }
-      return { amount: parseFloat(payAmount.toFixed(2)), desc: description };
     }
 
-    // Calculate button handler
-    document.getElementById('calculateBtn').addEventListener('click', () => {
-      const empid = document.getElementById('empid').value;
-      const payTerm = document.getElementById('payTerm').value;
-      const monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 0;
-
-      if (!empid || !payTerm || monthlySalary <= 0) {
-        showMessage('Please enter Employee ID, select Pay Term, and provide a valid salary', 'error');
-        return;
+    // Pay button handler
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('pay-btn')) {
+        const empid = e.target.dataset.empid;
+        // TODO: Implement payment processing
+        showToast(`Payment initiated for Emp ID ${empid}`, 'success');
       }
-
-      const calc = calculatePay(monthlySalary, payTerm);
-      document.getElementById('calculationDisplay').innerHTML = `
-        <div class="calculation-row">
-          <span>Base Monthly Salary:</span>
-          <span>₹${monthlySalary.toLocaleString('en-IN')}</span>
-        </div>
-        <div class="calculation-row">
-          <span>Pay Term:</span>
-          <span>${payTerm.charAt(0).toUpperCase() + payTerm.slice(1).replace('-', ' ')}</span>
-        </div>
-        <div class="calculation-row">
-          <span>Calculation:</span>
-          <span>${calc.desc}</span>
-        </div>
-        <div class="calculation-row">
-          <span>Pay Amount:</span>
-          <span>₹${calc.amount.toLocaleString('en-IN')}</span>
-        </div>
-      `;
-      document.getElementById('reviewSection').style.display = 'block';
-      showMessage(`Calculated pay: ₹${calc.amount.toLocaleString('en-IN')}`);
-    });
-
-    // Submit button: Lock details (hide form, show pay button)
-    document.getElementById('submitBtn').addEventListener('click', () => {
-      document.getElementById('payForm').style.display = 'none';
-      document.getElementById('reviewSection').innerHTML = `
-        <h3>Locked Pay Details</h3>
-        <div id="calculationDisplay"></div> <!-- Already populated -->
-      `;
-      document.getElementById('paySection').style.display = 'block';
-      showToast('Details locked. Ready for payment.');
-    });
-
-    // Pay button: Placeholder (backend in next step)
-    document.getElementById('payBtn').addEventListener('click', () => {
-      // TODO: Call backend /process_payment
-      showToast('Payment processed! (Backend integration next)', 'success');
     });
   </script>
 

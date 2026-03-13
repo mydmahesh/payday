@@ -529,7 +529,8 @@ def pay_structure_list():
     ps.salary,
     ps.job_id,
     ps.pay_group,
-    ps.updated_at
+    ps.updated_at,
+    ps.notes
 FROM pay_structure ps
 LEFT JOIN pd_employees e ON ps.empid = e.empid
             WHERE ps.empid = ?
@@ -544,7 +545,8 @@ LEFT JOIN pd_employees e ON ps.empid = e.empid
     ps.salary,
     ps.job_id,
     ps.pay_group,
-    ps.updated_at
+    ps.updated_at,
+    ps.notes
 FROM pay_structure ps
 LEFT JOIN pd_employees e ON ps.empid = e.empid
             ORDER BY ps.updated_at DESC
@@ -570,74 +572,65 @@ LEFT JOIN pd_employees e ON ps.empid = e.empid
 def save_pay_structure():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No JSON data received"}), 400
 
-        required_fields = ['empid', 'name', 'pay_term', 'salary']
-        for field in required_fields:
-            if field not in data or data[field] is None or data[field] == "":
-                return jsonify({
-                    "status": "error",
-                    "message": f"Missing or empty required field: {field}"
-                }), 400
+        print("DEBUG - Received pay_structure data:", data)  # Debug print
 
-        empid        = int(data['empid'])
-        name         = str(data['name']).strip()
-        pay_term     = str(data['pay_term']).strip().lower()
-        salary       = float(data['salary'])
-        job_id       = data.get('job_id', '').strip() or None
-        pay_group    = data.get('pay_group', '').strip() or None
-        notes        = data.get('notes', '').strip() or None
+        empid      = data.get('empid')
+        name       = data.get('name')
+        pay_term   = (data.get('pay_term')   or '').strip()
+        salary     = data.get('salary')           # we'll convert later
+        job_id     = (data.get('job_id')     or '').strip()
+        pay_group  = (data.get('pay_group')  or '').strip()
+        notes      = (data.get('notes')      or '').strip()
+        if not empid:
+            return jsonify({"status": "error", "message": "Employee ID is required"}), 400
 
-        # Basic validation
-        if salary < 0:
-            return jsonify({"status": "error", "message": "Salary cannot be negative"}), 400
-
-        valid_pay_terms = {'One-time', 'daily', 'weekly', 'bi-weekly', 'monthly'}
-        if pay_term not in valid_pay_terms:
-            return jsonify({
-                "status": "error",
-                "message": f"Invalid pay_term. Allowed values: {', '.join(valid_pay_terms)}"
-            }), 400
+        # Optional: convert salary safely
+        try:
+            salary = float(salary) if salary else None
+        except (ValueError, TypeError):
+            salary = None
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Check if employee exists in pd_employees
+        # Check if empid exists in pd_employees
         cursor.execute("SELECT empid FROM pd_employees WHERE empid = ?", (empid,))
-        if not cursor.fetchone():
+        if cursor.fetchone() is None:
             conn.close()
-            return jsonify({"status": "error", "message": "Employee not found in pd_employees"}), 404
+            return jsonify({"status": "error", "message": f"Employee ID {empid} does not exist"}), 400
 
-        # UPSERT (insert or replace)
+        # Try UPDATE first (if record exists)
         cursor.execute("""
-            INSERT OR REPLACE INTO pay_structure 
-            (empid, name, pay_term, salary, job_id, pay_group, updated_at, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            empid,
-            name,
-            pay_term,
-            salary,
-            job_id,
-            pay_group,
-            datetime.now().isoformat(),
-            notes
-        ))
+            UPDATE pay_structure 
+            SET name = ?, pay_term = ?, salary = ?, job_id = ?, pay_group = ?, updated_at = CURRENT_TIMESTAMP, notes=?
+            WHERE empid = ?
+        """, (name, pay_term, salary, job_id, pay_group, notes, empid))
+
+        if cursor.rowcount == 0:
+            # INSERT if no record existed
+            cursor.execute("""
+                INSERT INTO pay_structure 
+                (empid, name, pay_term, salary, job_id, pay_group, updated_at,notes)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,?)
+            """, (empid,name, pay_term, salary, job_id, pay_group, notes))
 
         conn.commit()
         conn.close()
 
         return jsonify({
             "status": "success",
-            "message": f"Pay structure for employee {empid} ({name}) saved/updated successfully."
-        })
+            "message": "Pay structure saved successfully"
+        }), 200
 
-    except ValueError as ve:
-        return jsonify({"status": "error", "message": f"Invalid input format: {str(ve)}"}), 400
-    except sqlite3.Error as se:
-        return jsonify({"status": "error", "message": f"Database error: {str(se)}"}), 500
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+    
 @app.route('/tax-deductions')
 def tax_deductions():
     return app.send_static_file('tax_deductions.html')

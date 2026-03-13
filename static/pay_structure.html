@@ -12,6 +12,15 @@
       padding: 20px;
       background: #f9f9f9;
     }
+
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      text-align: center;
+    }
     h1, h2 {
       text-align: center;
       color: #333;
@@ -89,9 +98,13 @@
 </head>
 <body>
 
+<div class="header"></div>
 <a href="/" class="back-link">Home</a>
-
+ <a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+</a>
 <h1>Pay Structure Management</h1>
+</div>
 
 <div class="buttons">
   <button id="searchBtnMain">Search Employees</button>
@@ -180,6 +193,11 @@
       </select>
     </div>
 
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <input type="text" id="notes" placeholder="Any additional info (optional)">
+    </div>
+
     <div style="text-align: center; margin-top: 30px;">
       <button type="submit" id="saveBtn">Save Pay Structure</button>
     </div>
@@ -264,7 +282,7 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
 
   const payload = {
     empid:       parseInt(document.getElementById('empid').value),
-    name:        nameValue,
+    name:        document.getElementById('name').value,
     pay_term:    document.getElementById('pay_term').value,
     salary:      parseFloat(document.getElementById('salary').value) || 0,
     job_id:      document.getElementById('job_id').value.trim() || null,
@@ -338,6 +356,7 @@ document.getElementById('doSearchBtn').onclick = async () => {
         <td>${item.salary ? '₹' + Number(item.salary).toLocaleString('en-IN') : '-'}</td>
         <td>${item.job_id || '-'}</td>
         <td>${item.pay_group || '-'}</td>
+        <!-- <td>${item.notes || '-'}</td> -->
         <td>
           <a href="#" class="edit-link" data-empid="${item.empid}">Edit</a>
         </td>
@@ -366,27 +385,28 @@ document.getElementById('doSearchBtn').onclick = async () => {
 
 async function loadPayStructureForEdit(empid) {
   try {
-    // For now we reuse /employee/<id> – later we can make dedicated endpoint
-    const r = await fetch(`/employee/${empid}`);
+    // Fetch pay structure data
+    const r = await fetch(`/pay_structure_list?empid=${empid}`);
     const data = await r.json();
 
-    if (data.status === 'success' && data.employee) {
-      document.getElementById('empid').value = data.employee.empid;
-      document.getElementById('name').value = 
-        `${data.employee.first_name || ''} ${data.employee.last_name || ''}`.trim();
-      // Later: fetch actual pay structure if stored separately
-      document.getElementById('pay_term').value   = data.employee.pay_term || 'monthly';
-      document.getElementById('salary').value     = data.employee.salary || '';
-      document.getElementById('job_id').value     = data.employee.job_id || '';
-      document.getElementById('pay_group').value  = data.employee.pay_group || '';
+    if (data.status === 'success' && data.structures.length > 0) {
+      const record = data.structures[0];
+      document.getElementById('empid').value = record.empid;
+      document.getElementById('name').value = record.name || '';
+      document.getElementById('pay_term').value = record.pay_term || '';
+      document.getElementById('salary').value = record.salary || '';
+      document.getElementById('job_id').value = record.job_id || '';
+      document.getElementById('pay_group').value = record.pay_group || '';
 
       document.getElementById('formTitle').textContent = `Edit Pay Structure – Emp #${empid}`;
       document.getElementById('searchSection').style.display = 'none';
       document.getElementById('formSection').style.display = 'block';
-      showToast('Loaded existing data for editing', 'success');
+      showToast('Loaded existing pay structure for editing', 'success');
+    } else {
+      showToast('No pay structure found for this employee', 'error');
     }
   } catch (err) {
-    showToast('Cannot load employee data', 'error');
+    showToast('Cannot load pay structure data', 'error');
   }
 }
 </script>
