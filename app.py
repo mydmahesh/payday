@@ -1,17 +1,98 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, redirect, url_for, flash, render_template
 import sqlite3
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'  # Change this to a secure key
 
 def get_db_connection():
     conn = sqlite3.connect('Paydaytest.db')
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    conn = get_db_connection()
+    conn.execute('''CREATE TABLE IF NOT EXISTS pdusers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    conn.commit()
+    conn.close()
+
+# Initialize database on startup
+init_db()
+
+@app.before_request
+def require_login():
+    allowed_routes = ['login', 'login_post', 'register', 'register_post', 'static']
+    if request.endpoint not in allowed_routes and 'user_id' not in session:
+        return redirect(url_for('login'))
+
 @app.route('/')
 def home():
-    return app.send_static_file('home.html')
+    return render_template('home.html')
+
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
+@app.route('/register')
+def register():
+    return render_template('register.html')
+
+@app.route('/register', methods=['POST'])
+def register_post():
+    data = request.form
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    confirm_password = data.get('confirmPassword')
+
+    if password != confirm_password:
+        flash('Passwords do not match')
+        return redirect(url_for('register'))
+
+    conn = get_db_connection()
+    try:
+        hashed_password = generate_password_hash(password)
+        conn.execute('INSERT INTO pdusers (name, email, password) VALUES (?, ?, ?)',
+                     (name, email, hashed_password))
+        conn.commit()
+        flash('Account created successfully! Please log in.')
+        return redirect(url_for('login'))
+    except sqlite3.IntegrityError:
+        flash('Email already exists')
+        return redirect(url_for('register'))
+    finally:
+        conn.close()
+
+@app.route('/login', methods=['POST'])
+def login_post():
+    data = request.form
+    email = data.get('email')
+    password = data.get('password')
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM pdusers WHERE email = ?', (email,)).fetchone()
+    conn.close()
+
+    if user and check_password_hash(user['password'], password):
+        session['user_id'] = user['id']
+        session['user_name'] = user['name']
+        return redirect(url_for('home'))
+    else:
+        flash('Invalid email or password')
+        return redirect(url_for('login'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 @app.route('/employee_details')
 def main_page():
     return app.send_static_file('employee_details.html')

@@ -148,6 +148,9 @@
 </head>
 
 <body>
+  <div style="position: absolute; top: 20px; right: 20px; font-size: 1rem; color: #374151;">
+    Welcome, {{ session['user_name'] }}! <a href="/logout" style="color: #e74c3c; text-decoration: none;">Logout</a>
+  </div>
   <div class="container">
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
     <!-- <h1>Pay Day</h1> -->
