@@ -121,7 +121,7 @@
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <button id="loadBtn">Load All Dues</button>
+      <button id="loadBtn">Load Dues</button>
     </div>
 
     <table id="payTable" style="display: none;">
@@ -142,8 +142,6 @@
 
     <div id="message" style="margin-top: 20px; padding: 12px; border-radius: 6px; text-align: center; display: none;"></div>
   </div>
-
-  <a href="/" class="back-link">← Back to Home</a>
 
   <script>
     function showToast(message, type = 'success') {
@@ -180,9 +178,9 @@
         const result = await response.json();
         if (result.status === 'success') {
           allStructures = result.structures;
-          displayStructures(allStructures);
+          applyFilters();
           document.getElementById('payTable').style.display = 'table';
-          showToast(`${allStructures.length} pays loaded`);
+          showToast(`${document.getElementById('payTableBody').children.length} pays loaded`);
         } else {
           showMessage('Failed to load pay structures', 'error');
         }
