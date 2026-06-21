@@ -23,13 +23,120 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+def ensure_pay_structure_schema():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Ensure table exists with a proper schema (id primary key, active flag, timestamps)
+    cursor.execute("""SELECT name FROM sqlite_master WHERE type='table' AND name='pay_structure'""")
+    if cursor.fetchone() is None:
+        cursor.execute('''
+            CREATE TABLE pay_structure (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empid INTEGER NOT NULL,
+                name TEXT,
+                pay_term TEXT,
+                salary REAL,
+                job_id TEXT,
+                pay_group TEXT,
+                active INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        return
+
+    # Table exists, check if required columns exist
+    cursor.execute("PRAGMA table_info(pay_structure)")
+    existing_cols = {row['name'] for row in cursor.fetchall()}
+
+    # Add missing active flag if needed
+    if 'active' not in existing_cols:
+        cursor.execute('ALTER TABLE pay_structure ADD COLUMN active INTEGER DEFAULT 0')
+
+    # Add paid flag if needed
+    if 'paid' not in existing_cols:
+        cursor.execute('ALTER TABLE pay_structure ADD COLUMN paid INTEGER DEFAULT 0')
+
+    # If the table has no explicit id column, migrate it to a new schema with id primary key
+    if 'id' not in existing_cols:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pay_structure_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empid INTEGER NOT NULL,
+                name TEXT,
+                pay_term TEXT,
+                salary REAL,
+                job_id TEXT,
+                pay_group TEXT,
+                active INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        ''')
+
+        cursor.execute('''
+            INSERT INTO pay_structure_new (id, empid, name, pay_term, salary, job_id, pay_group, active, updated_at, notes)
+            SELECT rowid, empid, name, pay_term, salary, job_id, pay_group,
+                   COALESCE(active, 0),
+                   COALESCE(updated_at, CURRENT_TIMESTAMP),
+                   notes
+            FROM pay_structure
+        ''')
+
+        cursor.execute('DROP TABLE pay_structure')
+        cursor.execute('ALTER TABLE pay_structure_new RENAME TO pay_structure')
+
+    conn.commit()
+    conn.close()
+
+
+def ensure_payments_schema():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""SELECT name FROM sqlite_master WHERE type='table' AND name='payments'""")
+    if cursor.fetchone() is None:
+        cursor.execute('''
+            CREATE TABLE payments (
+                payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empid INTEGER NOT NULL,
+                name TEXT,
+                hire_date TEXT,
+                pay_group TEXT,
+                pay_term TEXT,
+                pay_amount REAL,
+                payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                payment_handling_code TEXT,
+                payment_status TEXT,
+                reconcile_date TIMESTAMP,
+                recon_status TEXT,
+                payment_ref TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        return
+
+    conn.commit()
+    conn.close()
+
 # Initialize database on startup
 init_db()
+ensure_pay_structure_schema()
+ensure_payments_schema()
 
 @app.before_request
 def require_login():
     allowed_routes = ['login', 'login_post', 'register', 'register_post', 'static']
     if request.endpoint not in allowed_routes and 'user_id' not in session:
+        # If this is an AJAX/API request, return JSON instead of redirecting to login page
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+           'application/json' in request.headers.get('Accept', ''):
+            return jsonify({"status": "error", "message": "Authentication required"}), 401
         return redirect(url_for('login'))
 
 @app.route('/')
@@ -590,6 +697,10 @@ def get_employee_for_compensation(empid):
 def serve_pay_structure():
     return app.send_static_file('pay_structure.html')
 
+@app.route('/edit_pay_structure')
+def edit_pay_structure():
+    return app.send_static_file('edit_pay_structure.html')
+
 
 # ----------------------------------------------------------------
 #  GET /pay_structure_list   → returns list for search/table
@@ -597,44 +708,52 @@ def serve_pay_structure():
 @app.route('/pay_structure_list', methods=['GET'])
 def pay_structure_list():
     empid_filter = request.args.get('empid')
+    record_id = request.args.get('record_id')
+    active_only = request.args.get('active') in ['1', 'true', 'True', 'yes']
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    base_select = """
+        SELECT
+            ps.id,
+            ps.empid,
+            e.first_name || ' ' || e.last_name AS name,
+            ps.pay_term,
+            ps.salary,
+            ps.job_id,
+            ps.pay_group,
+            ps.active,
+            ps.updated_at,
+            ps.notes,
+            e.hire_date
+        FROM pay_structure ps
+        LEFT JOIN pd_employees e ON ps.empid = e.empid
+    """
+    where_clauses = []
+    params = []
+
+    if record_id:
+        where_clauses.append('ps.id = ?')
+        params.append(record_id)
+
     if empid_filter:
-        cursor.execute("""
-            SELECT 
-    ps.empid,
-    e.first_name || ' ' || e.last_name AS name,
-    ps.pay_term,
-    ps.salary,
-    ps.job_id,
-    ps.pay_group,
-    ps.updated_at,
-    ps.notes,
-    e.hire_date
-FROM pay_structure ps
-LEFT JOIN pd_employees e ON ps.empid = e.empid
-            WHERE ps.empid = ?
-            ORDER BY ps.empid
-        """, (empid_filter,))
-    else:
-        cursor.execute("""
-            SELECT 
-    ps.empid,
-    e.first_name || ' ' || e.last_name AS name,
-    ps.pay_term,
-    ps.salary,
-    ps.job_id,
-    ps.pay_group,
-    ps.updated_at,
-    ps.notes,
-    e.hire_date
-FROM pay_structure ps
-LEFT JOIN pd_employees e ON ps.empid = e.empid
-            ORDER BY ps.updated_at DESC
-            LIMIT 500
-        """)
+        where_clauses.append('ps.empid = ?')
+        params.append(empid_filter)
+
+    if active_only:
+        where_clauses.append('ps.active = 1')
+        where_clauses.append('ps.paid = 0')
+
+    if where_clauses:
+        base_select += ' WHERE ' + ' AND '.join(where_clauses)
+
+    base_select += ' ORDER BY ps.updated_at DESC'
+
+    if not record_id and not empid_filter:
+        base_select += ' LIMIT 500'
+
+    cursor.execute(base_select, tuple(params))
 
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
@@ -692,6 +811,7 @@ def save_pay_structure():
 
         print("DEBUG - Received pay_structure data:", data)  # Debug print
 
+        record_id  = data.get('id') or data.get('record_id')
         empid      = data.get('empid')
         name       = data.get('name')
         pay_term   = (data.get('pay_term')   or '').strip()
@@ -699,6 +819,10 @@ def save_pay_structure():
         job_id     = (data.get('job_id')     or '').strip()
         pay_group  = (data.get('pay_group')  or '').strip()
         notes      = (data.get('notes')      or '').strip()
+        active     = data.get('active')
+        # Normalize active flag
+        active = True if str(active).lower() in ['1', 'true', 'yes'] else False
+
         if not empid:
             return jsonify({"status": "error", "message": "Employee ID is required"}), 400
 
@@ -717,20 +841,30 @@ def save_pay_structure():
             conn.close()
             return jsonify({"status": "error", "message": f"Employee ID {empid} does not exist"}), 400
 
-        # Try UPDATE first (if record exists)
-        cursor.execute("""
-            UPDATE pay_structure 
-            SET name = ?, pay_term = ?, salary = ?, job_id = ?, pay_group = ?, updated_at = CURRENT_TIMESTAMP, notes=?
-            WHERE empid = ?
-        """, (name, pay_term, salary, job_id, pay_group, notes, empid))
+        # If this record should be active, clear active flag for other rows of the same employee
+        if active:
+            cursor.execute('UPDATE pay_structure SET active = 0 WHERE empid = ?', (empid,))
 
-        if cursor.rowcount == 0:
-            # INSERT if no record existed
+        # If an ID is provided, update that specific record
+        if record_id:
+            cursor.execute('SELECT empid FROM pay_structure WHERE id = ?', (record_id,))
+            found = cursor.fetchone()
+            if found:
+                cursor.execute("""
+                    UPDATE pay_structure
+                    SET name = ?, pay_term = ?, salary = ?, job_id = ?, pay_group = ?, active = ?, updated_at = CURRENT_TIMESTAMP, notes = ?
+                    WHERE id = ?
+                """, (name, pay_term, salary, job_id, pay_group, int(active), notes, record_id))
+            else:
+                record_id = None
+
+        # If no specific record is being edited, always insert a new row (preserve history)
+        if not record_id:
             cursor.execute("""
                 INSERT INTO pay_structure 
-                (empid, name, pay_term, salary, job_id, pay_group, updated_at,notes)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,?)
-            """, (empid,name, pay_term, salary, job_id, pay_group, notes))
+                (empid, name, pay_term, salary, job_id, pay_group, active, updated_at, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+            """, (empid, name, pay_term, salary, job_id, pay_group, int(active), notes))
 
         conn.commit()
         conn.close()
@@ -1053,27 +1187,60 @@ def process_pay():
             'status': 'error',
             'message': 'Employee is not active'
         }), 400
-    
-    
-    # For now: just simulate success (in Step 3/4 we'll record this in a payments table)
-    payment_record = {
-        'empid': empid,
-        'pay_term': pay_term,
-        'amount': amount,
-        'monthly_base': monthly_salary,
-        'paid_at': datetime.now().isoformat(),
-        'status': 'completed'  # we'll use real status later
-    }
-    
-    # TODO (future step): Insert into a payments table
-    # conn.execute('''
-    #     INSERT INTO payments (empid, pay_term, amount, monthly_base, paid_at, status)
-    #     VALUES (?, ?, ?, ?, ?, ?)
-    # ''', (empid, pay_term, amount, monthly_salary, datetime.now(), 'completed'))
-    # conn.commit()
-    
+
+    # Check if there's an active unpaid pay structure for this employee
+    pay_structure = conn.execute('''
+        SELECT id, pay_term, pay_group, salary
+        FROM pay_structure
+        WHERE empid = ? AND active = 1 AND paid = 0
+    ''', (empid,)).fetchone()
+
+    if pay_structure is None:
+        conn.close()
+        return jsonify({
+            'status': 'error',
+            'message': 'No active unpaid pay structure found for this employee'
+        }), 400
+
+    # Verify the pay_term matches (optional, but good check)
+    if pay_structure['pay_term'] != pay_term:
+        conn.close()
+        return jsonify({
+            'status': 'error',
+            'message': f'Pay term mismatch: expected {pay_structure["pay_term"]}, got {pay_term}'
+        }), 400
+
+    # Save payment into payments table
+    payment_handling_code = data.get('payment_handling_code') or 'AUTO'
+    payment_status = data.get('payment_status') or 'completed'
+    payment_ref = data.get('payment_ref') or f"PAY-{int(datetime.now().timestamp())}"
+    reconcile_date = data.get('reconcile_date')  # optional
+    recon_status = data.get('recon_status') or 'pending'
+
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO payments (
+            empid, name, hire_date, pay_group, pay_term, pay_amount,
+            payment_date, payment_handling_code, payment_status,
+            reconcile_date, recon_status, payment_ref
+        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+    ''', (
+        empid, data.get('name'), data.get('hire_date'), data.get('pay_group'), pay_term, amount,
+        payment_handling_code, payment_status, reconcile_date, recon_status, payment_ref
+    ))
+    conn.commit()
+
+    payment_id = cursor.lastrowid
+    cursor.execute('SELECT * FROM payments WHERE payment_id = ?', (payment_id,))
+    payment_row = cursor.fetchone()
+    payment_record = dict(payment_row) if payment_row else None
+
+    # Mark the pay structure as paid
+    cursor.execute('UPDATE pay_structure SET paid = 1 WHERE id = ?', (pay_structure['id'],))
+    conn.commit()
+
     conn.close()
-    
+
     return jsonify({
         'status': 'success',
         'message': f'Payment of ₹{amount:,.2f} processed successfully for employee {empid}',
@@ -1085,6 +1252,25 @@ def process_pay():
 @app.route('/payments')
 def list_payments():
     # We'll implement properly when we add the table
-    return jsonify({'message': 'Payments list coming in future step'})    
+    empid_filter = request.args.get('empid')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if empid_filter:
+        cursor.execute('SELECT * FROM payments WHERE empid = ? ORDER BY payment_date DESC', (int(empid_filter),))
+    else:
+        cursor.execute('SELECT * FROM payments ORDER BY payment_date DESC LIMIT 500')
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    payments = [dict(row) for row in rows]
+
+    return jsonify({
+        'status': 'success',
+        'payments': payments
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
