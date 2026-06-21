@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Pay Structure - PayDay</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+
+    .header {
+      text-align: left;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      text-align: center;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    .form-container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      margin-bottom: 25px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 17px;
+      margin: 0 15px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      color: white;
+    }
+    #saveBtn       { background: #e67e22; font-size: 18px; padding: 14px 60px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+    }
+    input[readonly] {
+      background: #f0f0f0;
+      color: #555;
+    }
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background: #2980b9;
+      color: white;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header"></div>
+<a href="/pay_structure" class="back-link">Back to Pay Structure</a>
+ <a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
+</a>
+<h1>Edit Pay Structure</h1>
+</div>
+
+<!-- FORM SECTION -->
+<div class="form-container">
+  <h2>Edit Pay Structure</h2>
+
+  <form id="payStructureForm">
+    <input type="hidden" id="record_id">
+    <input type="hidden" id="empid_hidden">
+
+    <div class="form-group">
+      <label for="empid">Employee ID *</label>
+      <input type="number" id="empid" required readonly placeholder="Employee ID">
+    </div>
+
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="name" readonly placeholder="Employee Name">
+    </div>
+
+    <div class="form-group">
+      <label for="pay_term">Pay Term *</label>
+      <select id="pay_term" required>
+        <option value="">Select term</option>
+        <option value="One-time">One-time</option>
+        <option value="monthly">Monthly</option>
+        <option value="bi-weekly">Bi-weekly</option>
+        <option value="weekly">Weekly</option>
+        <option value="daily">Daily</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="salary">Salary (₹) *</label>
+      <input type="number" id="salary" step="0.01" min="0" required>
+    </div>
+
+    <div class="form-group">
+      <label for="job_id">Job ID</label>
+      <input type="text" id="job_id" placeholder="e.g. DEV-001, MGR-05">
+    </div>
+
+    <div class="form-group">
+      <label for="pay_group">Pay Group</label>
+      <select id="pay_group">
+        <option value="">Select group</option>
+        <option value="A">A – Senior Management</option>
+        <option value="B">B – Management</option>
+        <option value="C">C – Regular</option>
+        <option value="D">D – Contract / Trainee</option>
+        <option value="E">E – Support Staff</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><input type="checkbox" id="active" style="margin-right: 10px;">Mark this pay term as active</label>
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <input type="text" id="notes" placeholder="Any additional info (optional)">
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <button type="submit" id="saveBtn">Update Pay Structure</button>
+    </div>
+  </form>
+
+  <div id="formMessage" style="margin-top:25px; padding:12px; border-radius:6px;"></div>
+</div>
+
+<script>
+// --------------------------------------------------
+//   Toast / Message Helpers
+// --------------------------------------------------
+function showToast(msg, type = 'success') {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position:fixed; top:20px; right:20px; z-index:2000;
+    padding:16px 24px; border-radius:8px; color:white; font-weight:bold;
+    background: ${type==='success'?'#27ae60':'#e74c3c'};
+    box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 400);
+  }, 4500);
+}
+
+function showMsg(elId, text, type = 'success') {
+  const el = document.getElementById(elId);
+  el.textContent = text;
+  el.style.background = type==='success' ? '#d4edda' : '#f8d7da';
+  el.style.color = type==='success' ? '#155724' : '#721c24';
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 6000);
+}
+
+// --------------------------------------------------
+//   Load data on page load
+// --------------------------------------------------
+window.onload = async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const recordId = urlParams.get('record_id');
+  if (!recordId) {
+    showToast('No record ID provided', 'error');
+    return;
+  }
+
+  try {
+    const r = await fetch(`/pay_structure_list?record_id=${recordId}`, {
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    if (!r.ok) {
+      showToast('Unable to load data (authentication required)', 'error');
+      return;
+    }
+
+    const data = await r.json();
+
+    if (data.status === 'success' && data.structures.length > 0) {
+      const record = data.structures[0];
+      document.getElementById('record_id').value = record.id || '';
+      document.getElementById('empid').value = record.empid;
+      document.getElementById('name').value = record.name || '';
+      document.getElementById('pay_term').value = record.pay_term || '';
+      document.getElementById('salary').value = record.salary || '';
+      document.getElementById('job_id').value = record.job_id || '';
+      document.getElementById('pay_group').value = record.pay_group || '';
+      document.getElementById('active').checked = !!record.active;
+      document.getElementById('notes').value = record.notes || '';
+
+      showToast('Loaded pay structure for editing', 'success');
+    } else {
+      showToast('No pay structure found for this record', 'error');
+    }
+  } catch (err) {
+    showToast('Cannot load pay structure data', 'error');
+  }
+};
+
+// --------------------------------------------------
+//   Save form
+// --------------------------------------------------
+document.getElementById('payStructureForm').onsubmit = async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    id:          document.getElementById('record_id').value || null,
+    empid:       parseInt(document.getElementById('empid').value),
+    name:        document.getElementById('name').value,
+    pay_term:    document.getElementById('pay_term').value,
+    salary:      parseFloat(document.getElementById('salary').value) || 0,
+    job_id:      document.getElementById('job_id').value.trim() || null,
+    pay_group:   document.getElementById('pay_group').value || null,
+    active:      document.getElementById('active').checked,
+    notes:       document.getElementById('notes')?.value.trim() || null
+  };
+
+  if (!payload.id || !payload.empid || !payload.pay_term || payload.salary <= 0) {
+    showMsg('formMessage', 'Please fill all required fields with valid data', 'error');
+    return;
+  }
+
+  try {
+    const resp = await fetch('/save_pay_structure', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    const res = await resp.json();
+
+    if (res.status === 'success') {
+      showToast( res.message || 'Pay structure updated successfully', 'success');
+    // Optionally redirect back after a delay
+    //   setTimeout(() => window.location.href = '/pay_structure', 2000);
+    } else {
+      showToast( res.message || 'Update failed', 'error');
+    }
+  } catch (err) {
+    showToast('Network / server error', 'error');
+  }
+};
+</script>
+</body>
+</html>

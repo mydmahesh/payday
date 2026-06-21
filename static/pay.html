@@ -80,6 +80,16 @@
     .back-link a {
       font-weight: bold;
     }
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
+    }
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
+    }
   </style>
 </head>
 <body>
@@ -87,13 +97,13 @@
   <a href="/" class="home-btn">Home</a>
  <div class="header">
   <a href="/" class="logo-link">
-  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
   <h1>Employee Pay - Dues</h1>
 </div>
   <div class="container">
     
-    <p>Displaying all employees with their pay structures, next due dates, and calculated pay amounts.</p>
+    <!-- <p>Displaying all employees with their pay structures, next due dates, and calculated pay amounts.</p> -->
 
     <div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
       <div>
@@ -127,6 +137,7 @@
     <table id="payTable" style="display: none;">
       <thead>
         <tr>
+          <th><input type="checkbox" id="selectAllCheckbox"></th>
           <th>Emp ID</th>
           <th>Name</th>
           <th>Pay Term</th>
@@ -134,10 +145,38 @@
           <th>Base Salary</th>
           <th>Calculated Pay Amount</th>
           <th>Next Due Date</th>
-          <th>Action</th>
         </tr>
       </thead>
       <tbody id="payTableBody"></tbody>
+    </table>
+
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+      <button id="paySelectedBtn" style="background:#27ae60; padding:14px 40px; display: none;">Pay Selected</button>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <button id="loadPaymentsBtn" style="background:#8e44ad; padding:14px 40px;">Load Payments</button>
+    </div>
+
+    <table id="paymentsTable" style="display: none; margin-top: 20px;">
+      <thead>
+        <tr>
+          <th>Payment ID</th>
+          <th>Emp ID</th>
+          <th>Name</th>
+          <th>Hire Date</th>
+          <th>Pay Group</th>
+          <th>Pay Term</th>
+          <th>Pay Amount</th>
+          <th>Payment Date</th>
+          <th>Handling Code</th>
+          <th>Status</th>
+          <th>Reconcile Date</th>
+          <th>Recon Status</th>
+          <th>Payment Ref</th>
+        </tr>
+      </thead>
+      <tbody id="paymentsTableBody"></tbody>
     </table>
 
     <div id="message" style="margin-top: 20px; padding: 12px; border-radius: 6px; text-align: center; display: none;"></div>
@@ -174,7 +213,13 @@
     let allStructures = [];
     document.getElementById('loadBtn').addEventListener('click', async () => {
       try {
-        const response = await fetch('/pay_structure_list');
+        const response = await fetch('/pay_structure_list?active=1', {
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
         const result = await response.json();
         if (result.status === 'success') {
           allStructures = result.structures;
@@ -192,11 +237,12 @@
     function displayStructures(structures) {
       const tbody = document.getElementById('payTableBody');
       tbody.innerHTML = '';
-      structures.forEach(record => {
+      structures.forEach((record, index) => {
         const payAmount = calculatePayAmount(record.salary, record.pay_term);
         const nextDue = record.next_due_date ? new Date(record.next_due_date).toLocaleDateString() : 'N/A';
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td><input type="checkbox" class="pay-checkbox" data-index="${index}"></td>
           <td>${record.empid}</td>
           <td>${record.name}</td>
           <td>${record.pay_term}</td>
@@ -204,9 +250,21 @@
           <td>₹${Number(record.salary).toLocaleString('en-IN')}</td>
           <td>₹${payAmount.toLocaleString('en-IN')}</td>
           <td>${nextDue}</td>
-          <td><button class="pay-btn" data-empid="${record.empid}">Pay Now</button></td>
         `;
         tbody.appendChild(tr);
+      });
+
+      // Add change listeners to checkboxes
+      document.querySelectorAll('.pay-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updatePaySelectedButton);
+      });
+
+      // Add listener to select all checkbox
+      document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+        document.querySelectorAll('.pay-checkbox').forEach(checkbox => {
+          checkbox.checked = e.target.checked;
+        });
+        updatePaySelectedButton();
       });
     }
 
@@ -223,6 +281,58 @@
         return matchesTerm && matchesGroup;
       });
       displayStructures(filtered);
+    }
+
+    // Payments list helper (backend table)
+    document.getElementById('loadPaymentsBtn').addEventListener('click', () => loadPayments());
+
+    async function loadPayments(empid = null) {
+      try {
+        let url = '/payments';
+        if (empid) url += `?empid=${encodeURIComponent(empid)}`;
+
+        const resp = await fetch(url, {
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+          displayPayments(data.payments || []);
+          document.getElementById('paymentsTable').style.display = 'table';
+          showToast(`${(data.payments || []).length} payments loaded`);
+        } else {
+          showMessage(data.message || 'Failed to load payments', 'error');
+        }
+      } catch (err) {
+        showMessage('Error loading payments', 'error');
+      }
+    }
+
+    function displayPayments(payments) {
+      const tbody = document.getElementById('paymentsTableBody');
+      tbody.innerHTML = '';
+      payments.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.payment_id}</td>
+          <td>${p.empid}</td>
+          <td>${p.name || '-'}</td>
+          <td>${p.hire_date || '-'}</td>
+          <td>${p.pay_group || '-'}</td>
+          <td>${p.pay_term || '-'}</td>
+          <td>₹${Number(p.pay_amount || 0).toLocaleString('en-IN')}</td>
+          <td>${p.payment_date ? new Date(p.payment_date).toLocaleString() : '-'}</td>
+          <td>${p.payment_handling_code || '-'}</td>
+          <td>${p.payment_status || '-'}</td>
+          <td>${p.reconcile_date ? new Date(p.reconcile_date).toLocaleString() : '-'}</td>
+          <td>${p.recon_status || '-'}</td>
+          <td>${p.payment_ref || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     function calculatePayAmount(salary, payTerm) {
@@ -243,12 +353,82 @@
       }
     }
 
-    // Pay button handler
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('pay-btn')) {
-        const empid = e.target.dataset.empid;
-        // TODO: Implement payment processing
-        showToast(`Payment initiated for Emp ID ${empid}`, 'success');
+    function updatePaySelectedButton() {
+      const checkedCount = document.querySelectorAll('.pay-checkbox:checked').length;
+      const payBtn = document.getElementById('paySelectedBtn');
+      if (checkedCount > 0) {
+        payBtn.style.display = 'inline-block';
+        payBtn.textContent = `Pay Selected (${checkedCount})`;
+      } else {
+        payBtn.style.display = 'none';
+        document.getElementById('selectAllCheckbox').checked = false;
+      }
+    }
+
+    // Pay selected button handler
+    document.getElementById('paySelectedBtn').addEventListener('click', async () => {
+      const selectedIndices = Array.from(document.querySelectorAll('.pay-checkbox:checked'))
+        .map(checkbox => parseInt(checkbox.dataset.index));
+
+      if (selectedIndices.length === 0) {
+        showToast('Please select at least one employee', 'error');
+        return;
+      }
+
+      const selectedRecords = selectedIndices.map(index => allStructures[index]);
+      const paymentRequests = selectedRecords.map(record => ({
+        empid: parseInt(record.empid),
+        pay_term: record.pay_term,
+        amount: parseFloat(record.salary) || 0,
+        monthly_salary: parseFloat(record.salary) || 0,
+        name: record.name,
+        hire_date: record.hire_date,
+        pay_group: record.pay_group,
+        payment_handling_code: 'AUTO',
+        payment_status: 'completed',
+        recon_status: 'pending',
+        payment_ref: `PAY-${Date.now()}-${record.empid}`
+      }));
+
+      try {
+        let successCount = 0;
+        let failCount = 0;
+
+        // Process payments sequentially
+        for (const payload of paymentRequests) {
+          try {
+            const resp = await fetch('/process_pay', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(payload)
+            });
+            const result = await resp.json();
+
+            if (result.status === 'success') {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (err) {
+            failCount++;
+          }
+        }
+
+        if (successCount > 0) {
+          showToast(`${successCount} payment(s) processed successfully${failCount > 0 ? `, ${failCount} failed` : ''}`, successCount === paymentRequests.length ? 'success' : 'error');
+          // Clear checkboxes
+          document.querySelectorAll('.pay-checkbox').forEach(checkbox => checkbox.checked = false);
+          document.getElementById('selectAllCheckbox').checked = false;
+          updatePaySelectedButton();
+          // Reload dues to remove paid ones
+          document.getElementById('loadBtn').click();
+          // Reload payments
+          loadPayments();
+        } else {
+          showToast('Payment processing failed', 'error');
+        }
+      } catch (err) {
+        showToast('Network error processing payments', 'error');
       }
     });
   </script>
