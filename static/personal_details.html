@@ -127,7 +127,8 @@
     </div>
     <div class="form-group">
       <label for="phone">Phone Number *</label>
-      <input type="tel" id="phone" required>
+      <input type="tel" id="phone" maxlength="13" placeholder="e.g. 9876543210 or +919876543210" required>
+	  <small id="phoneHelp" style="color:#e74c3c; display:none;">Phone number must be 10 digits or start with +91 followed by 10 digits.</small>
     </div>
     <div class="form-group">
       <label for="marrital_status">Marital Status</label>
@@ -190,6 +191,13 @@
       setTimeout(() => toast.remove(), 500);
     }, 6000);
   }
+  		// Phone number validation
+function isValidPhone(phone) {
+    const cleaned = phone.replace(/\s+/g, '');
+    // 10 digits OR +91 followed by 10 digits
+    const regex = /^(\+91)?[6-9]\d{9}$/;
+    return regex.test(cleaned);
+}
 
   // Show/hide sections on button click
   document.getElementById('addBtnMain').addEventListener('click', () => {
@@ -281,6 +289,20 @@ function clearPersonalFormFields() {
   // Form submit - save personal details
   document.getElementById('personalForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+	// Add this inside the form submit listener (before sending data)
+
+
+    const phoneInput = document.getElementById('phone');
+    const phoneHelp = document.getElementById('phoneHelp');
+    
+    if (!isValidPhone(phoneInput.value)) {
+        phoneHelp.style.display = 'block';
+        phoneInput.focus();
+        showToast('Invalid phone number format', 'error');
+        return;
+    } else {
+        phoneHelp.style.display = 'none';
+    }
     const data = {
       empid: parseInt(document.getElementById('empid').value),
       Name: document.getElementById('name').value.trim(),
@@ -297,6 +319,7 @@ function clearPersonalFormFields() {
       Country: document.getElementById('country').value.trim() || null,
       PINCode: document.getElementById('pincode').value.trim() || null
     };
+
 
     try {
       const response = await fetch('/save_personal_details', {
