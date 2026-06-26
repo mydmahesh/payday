@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pay Structure - PayDay</title>
+  <title>Pay Structure Search - PayDay</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -25,12 +25,22 @@
       text-align: center;
       color: #333;
     }
-    .container, .form-container {
+    .form-container,
+    .container {
+      display: none;
       background: white;
       padding: 30px;
       border-radius: 10px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.08);
       margin-bottom: 25px;
+      margin-top: 30px;
+    }
+
+    #searchMessage,
+    #formMessage {
+      text-align: center;
+      margin-top: 25px;
+      font-size: 15px;
     }
     .buttons {
       text-align: center;
@@ -94,25 +104,35 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       z-index: 1000;
     }
+    .logo-link {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      text-decoration: none;
+    }
+
+    .logo-link:hover {
+      transform: scale(1.04);
+      opacity: 0.92;
+    }
   </style>
 </head>
 <body>
 
-<div class="header"></div>
+<div class="header">
 <a href="/" class="back-link">Home</a>
- <a href="/" class="logo-link">
-  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+<a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
-<h1>Pay Structure Management</h1>
+<h1>Pay Structure</h1>
 </div>
 
 <div class="buttons">
-  <button id="searchBtnMain">Search Employees</button>
-  <button id="addBtnMain">Add / Edit Pay Structure</button>
+  <button id="searchBtnMain">Search Pay Structures</button>
+  <button id="addBtnMain">Add New Pay Structure</button>
 </div>
 
 <!-- SEARCH SECTION -->
-<div id="searchSection" class="container" style="display: none;">
+<div id="searchContainer" class="container" >
   <h2>Search Employee Pay Structure</h2>
   <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
     <div style="flex: 1; min-width: 220px;">
@@ -135,6 +155,7 @@
         <th>Monthly Salary</th>
         <th>Job ID</th>
         <th>Pay Group</th>
+        <th>Active</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -143,10 +164,11 @@
 </div>
 
 <!-- FORM SECTION -->
-<div id="formSection" class="form-container" style="display: none;">
-  <h2 id="formTitle">Add / Update Pay Structure</h2>
+<div id="formContainer" class="form-container" >
+  <h2>Add New Pay Structure</h2>
 
   <form id="payStructureForm">
+    <input type="hidden" id="record_id">
     <input type="hidden" id="empid_hidden">
 
     <div class="form-group">
@@ -194,6 +216,10 @@
     </div>
 
     <div class="form-group">
+      <label><input type="checkbox" id="active" style="margin-right: 10px;">Mark this pay term as active</label>
+    </div>
+
+    <div class="form-group">
       <label for="notes">Notes</label>
       <input type="text" id="notes" placeholder="Any additional info (optional)">
     </div>
@@ -236,84 +262,18 @@ function showMsg(elId, text, type = 'success') {
 }
 
 // --------------------------------------------------
-//   Toggle sections
+//   Show/hide sections
 // --------------------------------------------------
-document.getElementById('searchBtnMain').onclick = () => {
-  document.getElementById('searchSection').style.display = 'block';
-  document.getElementById('formSection').style.display = 'none';
-};
+document.getElementById('searchBtnMain').addEventListener('click', () => {
+  document.getElementById('searchContainer').style.display = 'block';
+  document.getElementById('formContainer').style.display = 'none';
+});
 
-document.getElementById('addBtnMain').onclick = () => {
-  document.getElementById('searchSection').style.display = 'none';
-  document.getElementById('formSection').style.display = 'block';
-  document.getElementById('formTitle').textContent = "Add / Update Pay Structure";
-  document.getElementById('payStructureForm').reset();
-  document.getElementById('empid').focus();
-};
+document.getElementById('addBtnMain').addEventListener('click', () => {
+  document.getElementById('formContainer').style.display = 'block';
+  document.getElementById('searchContainer').style.display = 'none';
+});
 
-// --------------------------------------------------
-//   Auto-fill name when empid changes
-// --------------------------------------------------
-document.getElementById('empid').onblur = async () => {
-  const empid = document.getElementById('empid').value.trim();
-  if (!empid) return;
-
-  try {
-    const r = await fetch(`/employee/${empid}`);
-    const data = await r.json();
-    if (data.status === 'success' && data.employee) {
-      document.getElementById('name').value = 
-        `${data.employee.first_name || ''} ${data.employee.last_name || ''}`.trim();
-      // Optional: pre-fill existing values if you later add endpoint
-      showToast("Employee found", 'success');
-    } else {
-      showToast(data.message || "Employee not found", 'error');
-    }
-  } catch (err) {
-    showToast("Cannot connect to server", 'error');
-  }
-};
-
-// --------------------------------------------------
-//   Save form
-// --------------------------------------------------
-document.getElementById('payStructureForm').onsubmit = async (e) => {
-  e.preventDefault();
-
-  const payload = {
-    empid:       parseInt(document.getElementById('empid').value),
-    name:        document.getElementById('name').value,
-    pay_term:    document.getElementById('pay_term').value,
-    salary:      parseFloat(document.getElementById('salary').value) || 0,
-    job_id:      document.getElementById('job_id').value.trim() || null,
-    pay_group:   document.getElementById('pay_group').value || null,
-    notes:    document.getElementById('notes')?.value.trim() || null
-  };
-
-  if (!payload.empid || !payload.pay_term || payload.salary <= 0) {
-    showMsg('formMessage', 'Please fill Employee ID, Pay Term and valid Salary', 'error');
-    return;
-  }
-
-  try {
-    const resp = await fetch('/save_pay_structure', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    });
-
-    const res = await resp.json();
-
-    if (res.status === 'success') {
-      showMsg('formMessage', res.message || 'Pay structure saved successfully', 'success');
-      document.getElementById('payStructureForm').reset();
-    } else {
-      showMsg('formMessage', res.message || 'Save failed', 'error');
-    }
-  } catch (err) {
-    showMsg('formMessage', 'Network / server error', 'error');
-  }
-};
 
 // --------------------------------------------------
 //   Search
@@ -331,7 +291,26 @@ document.getElementById('doSearchBtn').onclick = async () => {
   if (empid) url += `?empid=${encodeURIComponent(empid)}`;
 
   try {
-    const r = await fetch(url);
+    const r = await fetch(url, {
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    if (!r.ok) {
+      msgEl.textContent = 'Unable to load data (authentication required)';
+      msgEl.style.background = '#f8d7da';
+      return;
+    }
+
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      msgEl.textContent = 'Unable to load data (unexpected response)';
+      msgEl.style.background = '#f8d7da';
+      return;
+    }
+
     const data = await r.json();
 
     if (data.status !== 'success') {
@@ -356,9 +335,11 @@ document.getElementById('doSearchBtn').onclick = async () => {
         <td>${item.salary ? '₹' + Number(item.salary).toLocaleString('en-IN') : '-'}</td>
         <td>${item.job_id || '-'}</td>
         <td>${item.pay_group || '-'}</td>
-        <!-- <td>${item.notes || '-'}</td> -->
+        <td style="text-align: center;">
+          <input type="radio" name="active-${item.empid}" data-record-id="${item.id}" ${item.active ? 'checked' : ''} />
+        </td>
         <td>
-          <a href="#" class="edit-link" data-empid="${item.empid}">Edit</a>
+          <a href="/edit_pay_structure?record_id=${item.id}" class="edit-link">Edit</a>
         </td>
       `;
       tbody.appendChild(tr);
@@ -368,12 +349,12 @@ document.getElementById('doSearchBtn').onclick = async () => {
     msgEl.textContent = `Found ${data.structures.length} record(s)`;
     msgEl.style.background = '#d4edda';
 
-    // Add edit click handlers
-    document.querySelectorAll('.edit-link').forEach(link => {
-      link.onclick = (e) => {
-        e.preventDefault();
-        const empid = link.dataset.empid;
-        loadPayStructureForEdit(empid);
+    // Add active toggle handlers
+    document.querySelectorAll('input[type="radio"][name^="active-"]').forEach(radio => {
+      radio.onchange = () => {
+        const recordId = radio.dataset.recordId;
+        const empid = radio.name.replace('active-', '');
+        setActiveRecord(recordId, empid);
       };
     });
 
@@ -383,32 +364,99 @@ document.getElementById('doSearchBtn').onclick = async () => {
   }
 };
 
-async function loadPayStructureForEdit(empid) {
+// --------------------------------------------------
+//   Set active pay structure record
+// --------------------------------------------------
+async function setActiveRecord(recordId, empid) {
   try {
-    // Fetch pay structure data
-    const r = await fetch(`/pay_structure_list?empid=${empid}`);
-    const data = await r.json();
+    const resp = await fetch('/save_pay_structure', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        id: recordId,
+        empid,
+        active: true
+      })
+    });
 
-    if (data.status === 'success' && data.structures.length > 0) {
-      const record = data.structures[0];
-      document.getElementById('empid').value = record.empid;
-      document.getElementById('name').value = record.name || '';
-      document.getElementById('pay_term').value = record.pay_term || '';
-      document.getElementById('salary').value = record.salary || '';
-      document.getElementById('job_id').value = record.job_id || '';
-      document.getElementById('pay_group').value = record.pay_group || '';
-
-      document.getElementById('formTitle').textContent = `Edit Pay Structure – Emp #${empid}`;
-      document.getElementById('searchSection').style.display = 'none';
-      document.getElementById('formSection').style.display = 'block';
-      showToast('Loaded existing pay structure for editing', 'success');
+    const res = await resp.json();
+    if (res.status === 'success') {
+      // Update UI radios so only the selected record is active for this employee
+      document.querySelectorAll(`input[name="active-${empid}"]`).forEach(r => {
+        r.checked = r.dataset.recordId === recordId;
+      });
+      showToast(`Set active pay term for employee ${empid}`, 'success');
     } else {
-      showToast('No pay structure found for this employee', 'error');
+      showToast(res.message || 'Failed to set active record', 'error');
     }
   } catch (err) {
-    showToast('Cannot load pay structure data', 'error');
+    showToast('Network error setting active pay term', 'error');
   }
 }
+
+// --------------------------------------------------
+//   Auto-fill name when empid changes
+// --------------------------------------------------
+document.getElementById('empid').onblur = async () => {
+  const empid = document.getElementById('empid').value.trim();
+  if (!empid) return;
+
+  try {
+    const r = await fetch(`/employee/${empid}`);
+    const data = await r.json();
+    if (data.status === 'success' && data.employee) {
+      document.getElementById('name').value = 
+        `${data.employee.first_name || ''} ${data.employee.last_name || ''}`.trim();
+      showToast("Employee found", 'success');
+    } else {
+      showToast(data.message || "Employee not found", 'error');
+    }
+  } catch (err) {
+    showToast("Cannot connect to server", 'error');
+  }
+};
+
+// --------------------------------------------------
+//   Save form
+// --------------------------------------------------
+document.getElementById('payStructureForm').onsubmit = async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    empid:       parseInt(document.getElementById('empid').value),
+    name:        document.getElementById('name').value,
+    pay_term:    document.getElementById('pay_term').value,
+    salary:      parseFloat(document.getElementById('salary').value) || 0,
+    job_id:      document.getElementById('job_id').value.trim() || null,
+    pay_group:   document.getElementById('pay_group').value || null,
+    active:      document.getElementById('active').checked,
+    notes:       document.getElementById('notes')?.value.trim() || null
+  };
+
+  if (!payload.empid || !payload.pay_term || payload.salary <= 0) {
+    showMsg('formMessage', 'Please fill Employee ID, Pay Term and valid Salary', 'error');
+    return;
+  }
+
+  try {
+    const resp = await fetch('/save_pay_structure', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    const res = await resp.json();
+
+    if (res.status === 'success') {
+      showToast(res.message || 'Pay structure saved successfully', 'success');
+      document.getElementById('payStructureForm').reset();
+    } else {
+      showMsg('formMessage', res.message || 'Save failed', 'error');
+    }
+  } catch (err) {
+    showMsg('formMessage', 'Network / server error', 'error');
+  }
+};
 </script>
 </body>
 </html>

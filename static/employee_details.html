@@ -54,7 +54,7 @@
 
   <div class="header">
   <a href="/" class="logo-link">
-  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" width="280" height="99">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
     <!-- <h1>Pay Day</h1> -->
     <h1>Employee Management</h1>
@@ -178,7 +178,7 @@
           <input type="checkbox" id="is_active" checked> Active
         </label>
       </div>
-      <button type="submit" class="action-btn" style="background:#27ae60; color:white;">Save Employee</button>
+      <button type="submit" class="action-btn" style="background:#27ae60; color:white;">Get Emp ID</button>
     </form>
 
   
@@ -373,6 +373,20 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   document.getElementById('newEmpId').value = '';                 // clear the ID field
   document.getElementById('newEmpIdContainer').style.display = 'none';
   showToast('Form cleared successfully', 'success');
+});
+// Set default Hire Date to today's local system date
+document.getElementById('addBtnMain').addEventListener('click', () => {
+  const now = new Date();
+  
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');  // 01-12
+  const day = String(now.getDate()).padStart(2, '0');         // 01-31
+  
+  const todayLocal = `${year}-${month}-${day}`;
+  
+  document.getElementById('hire_date').value = todayLocal;
+  
+  console.log("Hire Date set to local system date:", todayLocal); // for debugging
 });
   </script>
 
