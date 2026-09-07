@@ -124,6 +124,20 @@ def ensure_payments_schema():
     conn.commit()
     conn.close()
 
+
+def row_to_dict(row, columns):
+    return {col: row[idx] for idx, col in enumerate(columns)}
+
+
+def rows_to_list(cursor, rows):
+    columns = [desc[0] for desc in cursor.description]
+    return [row_to_dict(row, columns) for row in rows]
+
+
+def as_bool(value):
+    return str(value).lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+
 # Initialize database on startup
 init_db()
 ensure_pay_structure_schema()
@@ -240,27 +254,11 @@ def get_employees():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM pd_employees ORDER BY empid DESC')
-        rows = cursor.fetchall()
-        columns = [description[0] for description in cursor.description]
+        employees = rows_to_list(cursor, cursor.fetchall())
         conn.close()
-        
-        employees = []
-        for row in rows:
-            emp_dict = {}
-            for idx, col_name in enumerate(columns):
-                emp_dict[col_name] = row[idx]
-            employees.append(emp_dict)
-        
-        return jsonify({
-            "status": "success",
-            "employees": employees
-        }), 200
-    
+        return jsonify({"status": "success", "employees": employees}), 200
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 400
+        return jsonify({"status": "error", "message": str(e)}), 400
 @app.route('/search', methods=['GET'])
 def search_employees():
     try:
@@ -272,45 +270,25 @@ def search_employees():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        # Build query safely
         query = f"SELECT * FROM pd_employees WHERE {field} = ?"
         params = (value,)
 
-        # Special handling for is_active (it's integer 0/1)
         if field == 'is_active':
             try:
-                value = int(value)  # convert "1" or "0" to int
+                value = int(value)
             except ValueError:
                 return jsonify({"status": "error", "message": "Active must be 0 or 1"}), 400
-
-        # For text fields, if you want partial match (LIKE) instead of exact, uncomment next line
-        # if field in ['first_name', 'last_name', 'email']:
-        #     query = f"SELECT * FROM pd_employees WHERE {field} LIKE ?"
-         #    params = (f"%{value}%",)
+            params = (value,)
 
         cursor.execute(query, params)
-        rows = cursor.fetchall()
-        columns = [description[0] for description in cursor.description]
+        employees = rows_to_list(cursor, cursor.fetchall())
         conn.close()
-
-        employees = []
-        for row in rows:
-            emp_dict = {}
-            for idx, col_name in enumerate(columns):
-                emp_dict[col_name] = row[idx]
-            employees.append(emp_dict)
-
-        return jsonify({
-            "status": "success",
-            "employees": employees
-        }), 200
+        return jsonify({"status": "success", "employees": employees}), 200
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 400
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
 @app.route('/employee/<int:empid>', methods=['GET'])
 def get_employee(empid):
     try:
@@ -323,22 +301,11 @@ def get_employee(empid):
         if row is None:
             return jsonify({"status": "error", "message": "Employee not found"}), 404
 
-        # Convert row to dict using actual column names
-        columns = [description[0] for description in cursor.description]
-        employee = {}
-        for idx, col_name in enumerate(columns):
-            employee[col_name] = row[idx]
-
-        return jsonify({
-            "status": "success",
-            "employee": employee
-        }), 200
+        employee = row_to_dict(row, [description[0] for description in cursor.description])
+        return jsonify({"status": "success", "employee": employee}), 200
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 400
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 
 @app.route('/update_employee', methods=['POST'])
@@ -362,7 +329,7 @@ def update_employee():
             UPDATE pd_employees
             SET first_name = ?, last_name = ?, email = ?, hire_date = ?, grade = ?, is_active = ?
             WHERE empid = ?
-        ''', (first_name, last_name, email, hire_date, data.get('grade'), is_active, empid))
+        ''', (first_name, last_name, email, hire_date, grade, is_active, empid))
 
         conn.commit()
         conn.close()
@@ -489,15 +456,8 @@ def search_bank_details():
             cursor.execute('SELECT * FROM bank_details ORDER BY id DESC')
 
         rows = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description]
         conn.close()
-
-        bank_details = []
-        for row in rows:
-            record = {}
-            for idx, col_name in enumerate(columns):
-                record[col_name] = row[idx]
-            bank_details.append(record)
+        bank_details = rows_to_list(cursor, rows)
 
         return jsonify({
             "status": "success",
@@ -1061,13 +1021,9 @@ def search_compensation():
 
         rows = cursor.fetchall()
         conn.close()
-
         records = [dict(row) for row in rows]
 
-        return jsonify({
-            "status": "success",
-            "compensation": records
-        }), 200
+        return jsonify({"status": "success", "compensation": records}), 200
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -1089,20 +1045,10 @@ def search_personal_details():
             cursor.execute('SELECT * FROM pd_empersonal ORDER BY empid DESC')
 
         rows = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description]
         conn.close()
+        records = rows_to_list(cursor, rows)
 
-        records = []
-        for row in rows:
-            record = {}
-            for idx, col_name in enumerate(columns):
-                record[col_name] = row[idx]
-            records.append(record)
-
-        return jsonify({
-            "status": "success",
-            "personal": records
-        }), 200
+        return jsonify({"status": "success", "personal": records}), 200
 
     except Exception as e:
         return jsonify({
@@ -1251,7 +1197,6 @@ def process_pay():
 # Optional: Add this if you want to see all payments later (for testing)
 @app.route('/payments')
 def list_payments():
-    # We'll implement properly when we add the table
     empid_filter = request.args.get('empid')
 
     conn = get_db_connection()
@@ -1264,13 +1209,10 @@ def list_payments():
 
     rows = cursor.fetchall()
     conn.close()
-
     payments = [dict(row) for row in rows]
 
-    return jsonify({
-        'status': 'success',
-        'payments': payments
-    })
+    return jsonify({'status': 'success', 'payments': payments})
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
