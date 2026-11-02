@@ -42,39 +42,23 @@
     }
 
     #saveBtn {
-      background-color: var(--secondary-orange);
       padding: 14px 50px;
       width: auto;
       font-size: 18px;
       font-weight: bold;
     }
 
-    #saveBtn:hover {
-      background-color: #d35400;
-    }
-
     #searchBankBtn {
-      background-color: var(--primary-blue);
       padding: 14px 40px;
       width: auto;
     }
 
-    #searchBankBtn:hover {
-      background-color: var(--primary-blue-hover);
-    }
-
     .edit-btn {
-      background-color: var(--success-green);
-      color: white;
       border: none;
       padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
-    }
-
-    .edit-btn:hover {
-      background-color: var(--success-green-hover);
     }
 
     .warning {
@@ -195,7 +179,7 @@ function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.cssText = `
-    position: fixed; top: 20px; right: 20px; z-index: 1000;
+    position: fixed; bottom: 20px; right: 20px; z-index: 1000;
     padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
     background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);

@@ -1120,6 +1120,11 @@ def pay():
     return app.send_static_file('payroll.html')
 
 
+@app.route('/pay_structure_setup')
+def pay_structure_setup():
+    return app.send_static_file('pay_structure_setup.html')
+
+
 @app.route('/attendance')
 def attendance():
     return app.send_static_file('attendance.html')
@@ -1309,6 +1314,43 @@ def payroll_calendar():
     return jsonify({"status": "success", "message": "Calendar override saved"})
 
 
+@app.route('/payroll/settings', methods=['GET', 'POST'])
+def payroll_settings():
+    conn = get_db_connection()
+    if request.method == 'GET':
+        rows = conn.execute(
+            'SELECT setting_key, setting_value FROM pay_term_settings ORDER BY setting_key'
+        ).fetchall()
+        payload = {row['setting_key']: row['setting_value'] for row in rows}
+        conn.close()
+        return jsonify({
+            'status': 'success',
+            'settings': {
+                'weekly_cutoff_weekday': payload.get('weekly_cutoff_weekday', '3'),
+                'bi_weekly_cutoff_weekday': payload.get('bi_weekly_cutoff_weekday', '3'),
+                'monthly_cutoff_day': payload.get('monthly_cutoff_day', 'last_working_day'),
+            }
+        })
+
+    data = request.get_json(silent=True) or {}
+    for key, value in {
+        'weekly_cutoff_weekday': data.get('weekly_cutoff_weekday', '3'),
+        'bi_weekly_cutoff_weekday': data.get('bi_weekly_cutoff_weekday', '3'),
+        'monthly_cutoff_day': data.get('monthly_cutoff_day', 'last_working_day'),
+    }.items():
+        conn.execute(
+            '''INSERT INTO pay_term_settings (setting_key, setting_value)
+               VALUES (?, ?)
+               ON CONFLICT(setting_key) DO UPDATE SET
+                   setting_value = excluded.setting_value,
+                   updated_at = CURRENT_TIMESTAMP''',
+            (key, str(value)),
+        )
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'success', 'message': 'Pay structure setup saved'})
+
+
 @app.route('/payroll/runs', methods=['POST'])
 def create_payroll_run():
     data = request.get_json(silent=True) or {}
@@ -1358,6 +1400,70 @@ def approve_payroll_run(run_id):
             )
             update_run_payment_status(conn, run_id)
         return jsonify({"status": "success", "run": payroll_run_payload(conn, run_id)})
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/lines/<int:line_id>/approve', methods=['POST'])
+def approve_payroll_line(line_id):
+    conn = get_db_connection()
+    try:
+        with conn:
+            line = conn.execute(
+                '''SELECT l.*, r.status AS run_status, r.exception_count
+                   FROM payroll_lines l
+                   JOIN payroll_runs r ON r.run_id = l.run_id
+                   WHERE l.line_id = ?''',
+                (line_id,),
+            ).fetchone()
+            if line is None:
+                return jsonify({"status": "error", "message": "Payroll line not found"}), 404
+            if line['line_status'] == 'exception':
+                return jsonify({"status": "error", "message": "Resolve the payroll exception before approval"}), 400
+            conn.execute(
+                "UPDATE payroll_lines SET payment_status = 'pending' WHERE line_id = ?",
+                (line_id,),
+            )
+            remaining = conn.execute(
+                "SELECT COUNT(*) FROM payroll_lines WHERE run_id = ? AND line_status = 'exception'",
+                (line['run_id'],),
+            ).fetchone()[0]
+            if remaining == 0 and line['run_status'] == 'draft':
+                conn.execute(
+                    "UPDATE payroll_runs SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE run_id = ?",
+                    (line['run_id'],),
+                )
+            update_run_payment_status(conn, line['run_id'])
+        return jsonify({"status": "success", "run": payroll_run_payload(conn, line['run_id'])})
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>/overdues', methods=['GET'])
+def payroll_overdues(run_id):
+    conn = get_db_connection()
+    try:
+        run = conn.execute('SELECT * FROM payroll_runs WHERE run_id = ?', (run_id,)).fetchone()
+        if run is None:
+            return jsonify({"status": "error", "message": "Payroll run not found"}), 404
+        cutoff = datetime.fromisoformat(run['cutoff_date']).date() if isinstance(run['cutoff_date'], str) else run['cutoff_date']
+        overdue_lines = []
+        if cutoff < date.today():
+            rows = conn.execute(
+                '''SELECT * FROM payroll_lines WHERE run_id = ? AND line_status = 'ready'
+                   ORDER BY empid''',
+                (run_id,),
+            ).fetchall()
+            for row in rows:
+                overdue_lines.append({
+                    'line_id': row['line_id'],
+                    'empid': row['empid'],
+                    'employee_name': row['employee_name'],
+                    'pay_term': row['pay_term'],
+                    'amount': row['amount_minor'] / 100,
+                    'payment_status': row['payment_status'],
+                })
+        return jsonify({"status": "success", "overdues": overdue_lines})
     finally:
         conn.close()
 

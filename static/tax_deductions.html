@@ -14,32 +14,9 @@
     }
 
     #saveBtn {
-      background-color: var(--secondary-orange);
-    }
-
-    #saveBtn:hover {
-      background-color: #d35400;
-    }
-
-    #searchBtn {
-      background-color: var(--primary-blue);
-    }
-
-    #searchBtn:hover {
-      background-color: var(--primary-blue-hover);
-    }
-
-    .edit-btn {
-      background-color: var(--success-green);
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .edit-btn:hover {
-      background-color: var(--success-green-hover);
+      padding: 16px 50px;
+      font-size: 18px;
+      font-weight: bold;
     }
 
     .back-link {
@@ -102,7 +79,7 @@
       <!-- Tax-specific fields will be added in next step -->
 
       <div style="margin-top: 40px; text-align: center;">
-        <button type="submit" id="saveBtn" style="background:#e67e22; color:white; padding:16px 50px; font-size:18px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        <button type="submit" id="saveBtn">
           Save Tax Deduction Details
         </button>
       </div>
@@ -120,7 +97,7 @@
       const toast = document.createElement('div');
       toast.textContent = message;
       toast.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        position: fixed; bottom: 20px; right: 20px; z-index: 1000;
         padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
         background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);

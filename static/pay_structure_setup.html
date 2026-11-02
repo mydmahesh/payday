@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pay Structure Setup - PayDay</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f3f5f7;
+      color: #1f2937;
+    }
+    .page-shell {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 20px;
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #d7dde5;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .brand img {
+      width: 220px;
+      height: auto;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: #163b5b;
+    }
+    .panel {
+      background: #ffffff;
+      border: 1px solid #d7dde5;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    }
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 12px;
+    }
+    label {
+      display: grid;
+      gap: 8px;
+      font-weight: 600;
+      color: #374151;
+    }
+    select, input {
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    button:hover { opacity: 0.96; }
+    .status {
+      margin-top: 18px;
+      min-height: 24px;
+      font-weight: 600;
+    }
+    .status.success { color: #166534; }
+    .status.error { color: #b91c1c; }
+    @media (max-width: 640px) {
+      .page-shell { padding: 12px; }
+      .page-header { flex-direction: column; align-items: flex-start; }
+      .brand { flex-direction: column; align-items: flex-start; }
+      .brand img { width: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="page-header">
+      <div class="brand">
+        <a href="/" aria-label="PayDay home"><img src="/static/images/Paydaylines1.png" alt="PayDay" /></a>
+        <h1>Pay Structure Setup</h1>
+      </div>
+      <nav class="page-links" aria-label="Setup navigation">
+        <a href="/pay_structure">Back to Pay Structure</a>
+      </nav>
+    </header>
+
+    <div class="panel">
+      <p>Define the default cutoff behavior for each pay term so payroll runs stay aligned with the schedule chosen for the employee.</p>
+      <div class="setup-grid">
+        <label>
+          Weekly cutoff weekday
+          <select id="weekly_cutoff_weekday">
+            <option value="0">Monday</option>
+            <option value="1">Tuesday</option>
+            <option value="2">Wednesday</option>
+            <option value="3">Thursday</option>
+            <option value="4">Friday</option>
+            <option value="5">Saturday</option>
+          </select>
+        </label>
+        <label>
+          Bi-weekly cutoff weekday
+          <select id="bi_weekly_cutoff_weekday">
+            <option value="0">Monday</option>
+            <option value="1">Tuesday</option>
+            <option value="2">Wednesday</option>
+            <option value="3" selected>Thursday</option>
+            <option value="4">Friday</option>
+            <option value="5">Saturday</option>
+          </select>
+        </label>
+        <label>
+          Monthly cutoff mode
+          <select id="monthly_cutoff_day">
+            <option value="last_working_day" selected>Last working day</option>
+            <option value="custom_day">Use custom day</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="saveSettings" type="button">Save setup</button>
+        <button class="secondary" id="backToPayroll" type="button">To Payroll</button>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script>
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
+        ...options
+      });
+      const data = await response.json();
+      if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Request failed');
+      return data;
+    }
+
+    async function loadSettings() {
+      try {
+        const result = await requestJson('/payroll/settings');
+        document.getElementById('weekly_cutoff_weekday').value = result.settings.weekly_cutoff_weekday || '3';
+        document.getElementById('bi_weekly_cutoff_weekday').value = result.settings.bi_weekly_cutoff_weekday || '3';
+        document.getElementById('monthly_cutoff_day').value = result.settings.monthly_cutoff_day || 'last_working_day';
+      } catch (error) {
+        showStatus(error.message, 'error');
+      }
+    }
+
+    function showStatus(message, tone = 'success') {
+      const el = document.getElementById('status');
+      el.textContent = message;
+      el.className = `status ${tone}`;
+    }
+
+    document.getElementById('saveSettings').addEventListener('click', async () => {
+      try {
+        await requestJson('/payroll/settings', {
+          method: 'POST',
+          body: JSON.stringify({
+            weekly_cutoff_weekday: document.getElementById('weekly_cutoff_weekday').value,
+            bi_weekly_cutoff_weekday: document.getElementById('bi_weekly_cutoff_weekday').value,
+            monthly_cutoff_day: document.getElementById('monthly_cutoff_day').value,
+          })
+        });
+        showStatus('Pay structure schedule saved.');
+      } catch (error) {
+        showStatus(error.message, 'error');
+      }
+    });
+
+    document.getElementById('backToPayroll').addEventListener('click', () => {
+      window.location.href = '/pay';
+    });
+
+    loadSettings();
+  </script>
+</body>
+</html>

@@ -100,6 +100,20 @@ class PayrollCalculationTests(unittest.TestCase):
         self.assertEqual(contractor['line_status'], 'exception')
         self.assertIn('Attendance is incomplete', contractor['exception_message'])
 
+    def test_daily_pay_term_is_calculated_by_present_days(self):
+        self.connection.execute("UPDATE pay_structure SET pay_term='daily', salary=150 WHERE empid=1")
+        self.connection.execute(
+            "INSERT INTO attendance_daily (empid, work_date, status) VALUES (1, '2026-06-01', 'present'), (1, '2026-06-02', 'present'), (1, '2026-06-03', 'absent')"
+        )
+        self.connection.execute("UPDATE pd_employees SET employment_type='permanent' WHERE empid=1")
+        day_lines = calculate_payroll_lines(
+            self.connection, date(2026, 6, 1), date(2026, 6, 30), date(2026, 6, 3)
+        )
+        employee_line = next(line for line in day_lines if line['empid'] == 1)
+        self.assertEqual(employee_line['pay_term'], 'daily')
+        self.assertEqual(employee_line['present_days'], 2)
+        self.assertEqual(employee_line['amount_minor'], 30000)
+
     def test_draft_refresh_is_idempotent_and_preserves_legacy_payments(self):
         cutoff = date(2026, 6, 3)
         first_id = create_or_refresh_run(self.connection, cutoff)

@@ -38,14 +38,6 @@
       opacity: 0.92;
     }
 
-    .action-btn {
-      background-color: var(--secondary-orange);
-    }
-
-    .action-btn:hover {
-      background-color: var(--secondary-orange-hover);
-    }
-
     #message {
       margin-top: 25px;
     }
@@ -150,7 +142,7 @@
     const toast = document.createElement('div');
     toast.textContent = message;
     toast.style.cssText = `
-      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      position: fixed; bottom: 20px; right: 20px; z-index: 1000;
       padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
       background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);

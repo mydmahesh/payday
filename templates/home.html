@@ -58,7 +58,7 @@
       padding: 18px 20px;
       font-size: 1.1rem;
       font-weight: 600;
-      color: #ffffff;
+      color: var(--button-text);
       text-decoration: none;
       border-radius: 12px;
       transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
@@ -68,71 +68,6 @@
     .btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-employee {
-      background: #2563eb;
-    }
-
-    .btn-employee:hover {
-      background: #1e4ed8;
-    }
-
-    .btn-personal {
-      background: #325e3b;
-    }
-
-    .btn-personal:hover {
-      background: #2a4d31;
-    }
-
-    .btn-bank {
-      background: #7c3aed;
-    }
-
-    .btn-bank:hover {
-      background: #6d28d9;
-    }
-
-    .btn-compensation {
-      background: #059669;
-    }
-
-    .btn-compensation:hover {
-      background: #047857;
-    }
-
-    .btn-salary {
-      background: #d97706;
-    }
-
-    .btn-salary:hover {
-      background: #b45309;
-    }
-
-    .btn-ps {
-      background: #8ae02d;
-    }
-
-    .btn-ps:hover {
-      background: #6d9c21;
-    }
-
-
-    .btn-tax {
-      background: #0f766e;
-    }
-
-    .btn-tax:hover {
-      background: #0d5f59;
-    }
-
-    .btn-reports {
-      background: #c026d3;
-    }
-
-    .btn-reports:hover {
-      background: #a21caf;
     }
 
     @media (max-width: 480px) {
@@ -157,16 +92,16 @@
     <p class="subtitle">Employee Payment System</p>
 	
 	<div class="actions">
-	<a href="/employee_details" class="btn btn-employee">Employee Details</a>
-	<a href="/personal_details" class="btn btn-personal">  Employee Personal Details</a>
-	
-  <a href="/pay_structure" class="btn btn-ps">Pay Structure</a>
+  <a href="/employee_details" class="btn btn-employee">Employee Details</a>
+  <a href="/personal_details" class="btn btn-personal">  Employee Personal Details</a>
+  <a href="/pay_structure" class="btn btn-bank">Pay Structure</a>
   <a href="/attendance" class="btn btn-personal">Attendance</a>
+  <!-- <a href="/pay_structure_setup" class="btn btn-ps">Pay Structure Setup</a>-->
 	<a href="/pay" class="btn btn-salary">Pay</a>	
   <!-- <a href="/compensation-details" class="btn btn-compensation">Compensation Details</a>
 	<a href="/tax-deductions" class="btn btn-tax">Tax Calculations</a> -->
 	
-	<a href="/bank-details" class="btn btn-bank">Bank Details</a>	
+  <a href="/bank-details" class="btn btn-ps">Bank Details</a>
 	<a href="/reports" class="btn btn-reports">Reports</a>
 	</div>
 	

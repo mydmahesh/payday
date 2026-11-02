@@ -35,14 +35,6 @@
       font-size: 17px;
     }
 
-    #loadBtn {
-      background-color: var(--primary-blue);
-    }
-
-    #loadBtn:hover {
-      background-color: var(--primary-blue-hover);
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -61,16 +53,10 @@
     }
 
     .pay-btn {
-      background-color: var(--success-green);
-      color: white;
       border: none;
       padding: 8px 16px;
       border-radius: 4px;
       cursor: pointer;
-    }
-
-    .pay-btn:hover {
-      background-color: var(--success-green-hover);
     }
 
     .back-link {
@@ -151,11 +137,11 @@
     </table>
 
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-      <button id="paySelectedBtn" style="background:#27ae60; padding:14px 40px; display: none;">Pay Selected</button>
+      <button id="paySelectedBtn" class="btn-success" style="padding:14px 40px; display: none;">Pay Selected</button>
     </div>
 
     <div style="text-align: center; margin-top: 30px;">
-      <button id="loadPaymentsBtn" style="background:#8e44ad; padding:14px 40px;">Load Payments</button>
+      <button id="loadPaymentsBtn" style="padding:14px 40px;">Load Payments</button>
     </div>
 
     <table id="paymentsTable" style="display: none; margin-top: 20px;">
@@ -187,7 +173,7 @@
       const toast = document.createElement('div');
       toast.textContent = message;
       toast.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        position: fixed; bottom: 20px; right: 20px; z-index: 1000;
         padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
         background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);

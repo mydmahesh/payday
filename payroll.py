@@ -67,6 +67,13 @@ def ensure_payroll_schema(connection: sqlite3.Connection) -> None:
         )"""
     )
     connection.execute(
+        """CREATE TABLE IF NOT EXISTS pay_term_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )"""
+    )
+    connection.execute(
         """CREATE TABLE IF NOT EXISTS payroll_runs (
             run_id INTEGER PRIMARY KEY AUTOINCREMENT,
             period_start TEXT NOT NULL,
@@ -147,6 +154,65 @@ def parse_iso_date(value: Any, field_name: str) -> date:
 def month_bounds(cutoff: date) -> tuple[date, date]:
     month_end = date(cutoff.year, cutoff.month, calendar.monthrange(cutoff.year, cutoff.month)[1])
     return date(cutoff.year, cutoff.month, 1), month_end
+
+
+def normalize_pay_term(value: Any) -> str:
+    text = str(value or "").strip().lower().replace('_', '-')
+    aliases = {
+        'one-time': 'one_time',
+        'one time': 'one_time',
+        'bi-weekly': 'bi_weekly',
+        'bi weekly': 'bi_weekly',
+        'weekly': 'weekly',
+        'daily': 'daily',
+        'monthly': 'monthly',
+    }
+    return aliases.get(text, text)
+
+
+def get_pay_term_setting(connection: sqlite3.Connection, key: str, default: str) -> str:
+    row = connection.execute(
+        'SELECT setting_value FROM pay_term_settings WHERE setting_key = ?',
+        (key,),
+    ).fetchone()
+    return row['setting_value'] if row else default
+
+
+def set_pay_term_setting(connection: sqlite3.Connection, key: str, value: Any) -> None:
+    connection.execute(
+        '''INSERT INTO pay_term_settings (setting_key, setting_value) VALUES (?, ?)
+           ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value,
+           updated_at = CURRENT_TIMESTAMP''',
+        (key, str(value)),
+    )
+
+
+def pay_term_period_bounds(connection: sqlite3.Connection, pay_term: Any, cutoff: date) -> tuple[date, date]:
+    normalized = normalize_pay_term(pay_term)
+    if normalized == 'daily':
+        return date(cutoff.year, cutoff.month, 1), cutoff
+    if normalized == 'monthly':
+        month_start = date(cutoff.year, cutoff.month, 1)
+        month_days = scheduled_workdays(connection, month_start, date(cutoff.year, cutoff.month, calendar.monthrange(cutoff.year, cutoff.month)[1]))
+        month_end = month_days[-1] if month_days else date(cutoff.year, cutoff.month, calendar.monthrange(cutoff.year, cutoff.month)[1])
+        return month_start, month_end
+    if normalized == 'weekly':
+        weekday = int(get_pay_term_setting(connection, 'weekly_cutoff_weekday', '3'))
+        week_start = cutoff - timedelta(days=cutoff.weekday())
+        week_end = week_start + timedelta(days=weekday)
+        return week_start, min(week_end, cutoff)
+    if normalized == 'bi_weekly':
+        weekday = int(get_pay_term_setting(connection, 'bi_weekly_cutoff_weekday', '3'))
+        current_week_start = cutoff - timedelta(days=cutoff.weekday())
+        period_end = current_week_start + timedelta(days=weekday)
+        if cutoff < period_end:
+            period_start = current_week_start - timedelta(days=7)
+        else:
+            period_start = current_week_start - timedelta(days=7)
+        return period_start, period_end
+    if normalized == 'one_time':
+        return cutoff, cutoff
+    return month_bounds(cutoff)
 
 
 def calendar_day_details(
@@ -253,15 +319,16 @@ def calculate_payroll_lines(
         elif len(structures) > 1:
             problems.append("Multiple active pay structures")
         if len(structures) == 1:
-            if (structure["pay_term"] or "").strip().lower() != "monthly":
-                problems.append(f"Active pay term '{structure['pay_term'] or '(blank)'}' is not monthly")
+            pay_term = normalize_pay_term(structure["pay_term"])
+            if not pay_term:
+                problems.append("Active pay term is blank")
             try:
                 salary_minor = _minor_units(structure["salary"])
                 if salary_minor <= 0:
-                    problems.append("Monthly salary is missing or not positive")
+                    problems.append("Salary is missing or not positive")
             except PayrollError:
                 salary_minor = 0
-                problems.append("Monthly salary is invalid")
+                problems.append("Salary is invalid")
         else:
             salary_minor = 0
 
@@ -276,7 +343,7 @@ def calculate_payroll_lines(
             "pay_term": structure["pay_term"] if structure else None,
             "monthly_salary": structure["salary"] if structure else None,
             "currency": "INR",
-            "scheduled_days": len(month_workdays),
+            "scheduled_days": 0,
             "present_days": 0,
             "amount_minor": 0,
             "line_status": "exception" if problem else "ready",
@@ -287,34 +354,50 @@ def calculate_payroll_lines(
             lines.append(line)
             continue
 
-        employment_type = employee["employment_type"]
-        if employment_type == "permanent":
+        pay_term = normalize_pay_term(structure["pay_term"])
+        period_start, period_end = pay_term_period_bounds(connection, pay_term, cutoff)
+        period_days = scheduled_workdays(connection, period_start, period_end)
+        line["scheduled_days"] = len(period_days)
+        attendance_start = max(period_start, hire_date)
+        expected_days = {
+            day.isoformat() for day in scheduled_workdays(connection, attendance_start, cutoff)
+        }
+        attendance_rows = connection.execute(
+            """SELECT work_date, status FROM attendance_daily
+               WHERE empid = ? AND work_date BETWEEN ? AND ?""",
+            (employee["empid"], attendance_start.isoformat(), cutoff.isoformat()),
+        ).fetchall()
+        recorded = {row["work_date"]: row["status"] for row in attendance_rows}
+        missing_days = expected_days.difference(recorded)
+        line["present_days"] = sum(
+            1 for day in expected_days
+            if recorded.get(day) == "present"
+        )
+
+        if employee["employment_type"] == "permanent" and pay_term == 'monthly':
             line["amount_minor"] = salary_minor
             line["present_days"] = len(
-                [day for day in month_workdays if day <= cutoff and day >= hire_date]
+                [day for day in period_days if day <= cutoff and day >= hire_date]
             )
+        elif pay_term == 'daily':
+            if not period_days:
+                line["line_status"] = "exception"
+                line["exception_message"] = "Payroll period has no scheduled workdays"
+            else:
+                line["amount_minor"] = _minor_units(Decimal(salary_minor) * Decimal(line["present_days"]) / Decimal(100))
+                if line["amount_minor"] == 0:
+                    line["payment_status"] = "not_payable"
+        elif pay_term == 'one_time':
+            line["amount_minor"] = salary_minor
+            if cutoff < date.today():
+                line["payment_status"] = 'pending'
         else:
-            attendance_start = max(period_start, hire_date)
-            expected_days = {
-                day.isoformat() for day in expected_by_cutoff if day >= attendance_start
-            }
-            attendance_rows = connection.execute(
-                """SELECT work_date, status FROM attendance_daily
-                   WHERE empid = ? AND work_date BETWEEN ? AND ?""",
-                (employee["empid"], attendance_start.isoformat(), cutoff.isoformat()),
-            ).fetchall()
-            recorded = {row["work_date"]: row["status"] for row in attendance_rows}
-            missing_days = expected_days.difference(recorded)
-            line["present_days"] = sum(
-                1 for day in expected_days
-                if recorded.get(day) == "present"
-            )
             if missing_days:
                 line["line_status"] = "exception"
                 line["exception_message"] = (
                     f"Attendance is incomplete: {len(missing_days)} scheduled day(s) have no record"
                 )
-            elif not month_workdays:
+            elif not period_days:
                 line["line_status"] = "exception"
                 line["exception_message"] = "Payroll period has no scheduled workdays"
             else:
@@ -322,7 +405,7 @@ def calculate_payroll_lines(
                     Decimal(salary_minor)
                     / Decimal(100)
                     * Decimal(line["present_days"])
-                    / Decimal(len(month_workdays))
+                    / Decimal(len(period_days) or 1)
                 )
                 line["amount_minor"] = _minor_units(amount)
                 if line["amount_minor"] == 0:

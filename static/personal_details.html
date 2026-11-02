@@ -71,7 +71,7 @@
     <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
     <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
   </div>
-  <button id="searchBtn" style="background:#3498db; color:white; padding:14px 40px; font-size:17px; border:none; border-radius:8px; cursor:pointer;">
+  <button id="searchBtn" style="padding:14px 40px;">
     Search
   </button>
   <div id="searchMessage" style="margin-top:25px; padding:14px; border-radius:8px; text-align:center;"></div>
@@ -91,10 +91,7 @@
 
 <!-- Add/Edit Form -->
 <div id="addFormContainer" class="form-container">
-<button type="button" id="clearBtn" style="position:fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 10px 15px;background:#dc3545; color:white; margin-left:15px;">
+<button type="button" id="clearBtn">
   Clear Form
 </button>
   <h2 id="formTitle">Add Personal Details</h2>
@@ -168,7 +165,7 @@
       <label for="pincode">PIN Code</label>
       <input type="text" id="pincode">
     </div>
-	<button type="submit" class="action-btn" style="background:#27ae60; color:white;">Save Personal Details</button>
+  <button type="submit" class="action-btn">Save Personal Details</button>
   </form>
   <div id="message"></div>
 </div>
@@ -178,7 +175,7 @@
     const toast = document.createElement('div');
     toast.textContent = message;
     toast.style.cssText = `
-      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      position: fixed; bottom: 20px; right: 20px; z-index: 1000;
       padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
       background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -370,8 +367,7 @@ function clearPersonalFormFields() {
             <td>${rec.email || ''}</td>
             <td>${rec.phone || ''}</td>
             <td>
-  <a href="/static/edit_personal_details.html?empid=${rec.empid}"
-     style="background:#27ae60; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; display:inline-block; cursor:pointer;">
+  <a href="/static/edit_personal_details.html?empid=${rec.empid}" class="button-link">
     Edit
   </a>
 </td>
