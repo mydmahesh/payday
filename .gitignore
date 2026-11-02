@@ -18,6 +18,9 @@ venv/
 # IDE / Editor files
 .idea/
 .vscode/
+!.vscode/
+.vscode/*
+!.vscode/mcp.json
 *.swp
 *.swo
 
