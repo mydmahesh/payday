@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Add Pay Structure - PayDay</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -77,7 +78,8 @@
 <body>
 
 <div class="header"></div>
-<a href="/pay_structure" class="back-link">Back to Pay Structure</a>
+<a href="/" class="home-btn">Home</a>
+<a href="/pay_structure" class="page-return">Back to Pay Structure</a>
  <a href="/" class="logo-link">
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
@@ -100,6 +102,16 @@
     <div class="form-group">
       <label>Name</label>
       <input type="text" id="name" readonly placeholder="Will auto-fill">
+    </div>
+
+    <div class="form-group">
+      <label for="employment_type">Employment Type *</label>
+      <select id="employment_type" required>
+        <option value="">Select employment type</option>
+        <option value="permanent">Permanent</option>
+        <option value="contractor">Contractor</option>
+        <option value="contingent">Contingent</option>
+      </select>
     </div>
 
     <div class="form-group">
@@ -195,6 +207,7 @@ document.getElementById('empid').onblur = async () => {
     if (data.status === 'success' && data.employee) {
       document.getElementById('name').value =
         `${data.employee.first_name || ''} ${data.employee.last_name || ''}`.trim();
+      document.getElementById('employment_type').value = data.employee.employment_type || '';
       showToast("Employee found", 'success');
     } else {
       showToast(data.message || "Employee not found", 'error');
@@ -203,6 +216,12 @@ document.getElementById('empid').onblur = async () => {
     showToast("Cannot connect to server", 'error');
   }
 };
+
+const queryEmployeeId = new URLSearchParams(window.location.search).get('empid');
+if (queryEmployeeId) {
+  document.getElementById('empid').value = queryEmployeeId;
+  document.getElementById('empid').dispatchEvent(new Event('blur'));
+}
 
 // --------------------------------------------------
 //   Save form
@@ -213,6 +232,7 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
   const payload = {
     empid:       parseInt(document.getElementById('empid').value),
     name:        document.getElementById('name').value,
+    employment_type: document.getElementById('employment_type').value,
     pay_term:    document.getElementById('pay_term').value,
     salary:      parseFloat(document.getElementById('salary').value) || 0,
     job_id:      document.getElementById('job_id').value.trim() || null,
@@ -221,8 +241,8 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
     notes:       document.getElementById('notes')?.value.trim() || null
   };
 
-  if (!payload.empid || !payload.pay_term || payload.salary <= 0) {
-    showMsg('formMessage', 'Please fill Employee ID, Pay Term and valid Salary', 'error');
+  if (!payload.empid || !payload.employment_type || !payload.pay_term || payload.salary <= 0) {
+    showMsg('formMessage', 'Please fill Employee ID, Employment Type, Pay Term and valid Salary', 'error');
     return;
   }
 
