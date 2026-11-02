@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monthly Payroll - PayDay</title>
+  <title>Payroll - PayDay</title>
   <link rel="stylesheet" href="/static/styles.css">
   <style>
     .payroll-page { max-width: 1440px; margin: 24px auto; padding: 20px; }
@@ -40,10 +40,9 @@
   <main class="payroll-page">
     <header class="payroll-header">
       <a href="/" aria-label="PayDay home"><img src="/static/images/Paydaylines1.png" alt="PayDay"></a>
-      <h1>Monthly Payroll</h1>
+      <h1>Payroll</h1>
       <nav class="page-links" aria-label="Payroll navigation">
-        <a href="/attendance">Attendance</a>
-        <a href="/pay_structure">Pay Structure</a>
+        <a href="/pay_structure_setup">Pay Structure Setup</a>
       </nav>
     </header>
 
@@ -54,8 +53,9 @@
         </label>
         <button type="button" id="generateRun">Generate or refresh draft</button>
         <div class="payroll-actions">
-          <button type="button" id="approveRun" disabled>Approve run</button>
-          <button type="button" id="recordPayments" disabled>Record pending payments</button>
+          <button type="button" id="approveRun" class="btn-success" disabled>Approve run</button>
+          <button type="button" id="recordPayments"  disabled>Record pending payments</button>
+          <button type="button" id="overduesButton"class="btn-success">Overdues</button>
         </div>
       </div>
       <div id="message" class="status-line" role="status" aria-live="polite"></div>
@@ -66,6 +66,18 @@
       <div class="summary-item"><span>Eligible employees</span><strong id="employeeCount">0</strong></div>
       <div class="summary-item"><span>Exceptions</span><strong id="exceptionCount">0</strong></div>
       <div class="summary-item"><span>Run status</span><strong id="runStatus">Not created</strong></div>
+    </section>
+
+    <section id="overduesSection" aria-label="Overdue payroll items" hidden>
+      <h2>Overdues</h2>
+      <div class="table-wrap">
+        <table class="payroll-table">
+          <thead><tr>
+            <th>Employee</th><th>Pay term</th><th class="amount">Amount</th><th>Payment status</th>
+          </tr></thead>
+          <tbody id="overdueRows"><tr><td class="empty" colspan="4">No overdue records for this run.</td></tr></tbody>
+        </table>
+      </div>
     </section>
 
     <section aria-label="Payroll line items">
@@ -124,6 +136,10 @@
       document.getElementById('runStatus').textContent = run.status.replaceAll('_', ' ');
       document.getElementById('approveRun').disabled = run.status !== 'draft' || run.exception_count > 0;
       document.getElementById('recordPayments').disabled = !['approved', 'partially_paid'].includes(run.status);
+      const overdueRows = document.getElementById('overdueRows');
+      overdueRows.replaceChildren();
+      const overdueSection = document.getElementById('overduesSection');
+      overdueSection.hidden = true;
       payrollLines.replaceChildren();
       if (!run.lines.length) {
         const row = document.createElement('tr');
@@ -158,6 +174,7 @@
           status.disabled = paymentLocked;
           const save = document.createElement('button');
           save.type = 'button';
+          save.className = 'btn-success';
           save.textContent = 'Save';
           save.disabled = paymentLocked;
           save.addEventListener('click', async () => {
@@ -170,9 +187,34 @@
               setMessage('Payment status updated.');
             } catch (error) { setMessage(error.message, true); }
           });
-          statusCell.append(status, document.createTextNode(' '), save);
+          const approve = document.createElement('button');
+          approve.type = 'button';
+          approve.className = 'btn-success';
+          approve.textContent = 'Approve';
+          approve.addEventListener('click', async () => {
+            try {
+              const result = await requestJson(`/payroll/lines/${line.line_id}/approve`, { method: 'POST', body: '{}' });
+              renderRun(result.run);
+              setMessage('Employee approval saved.');
+            } catch (error) { setMessage(error.message, true); }
+          });
+          statusCell.append(status, document.createTextNode(' '), save, document.createTextNode(' '), approve);
         } else {
-          statusCell.textContent = line.payment_status === 'not_payable' ? 'No payment due' : line.payment_status;
+          const approve = document.createElement('button');
+          approve.type = 'button';
+          approve.className = 'btn-success';
+          approve.textContent = 'Approve';
+          approve.addEventListener('click', async () => {
+            try {
+              const result = await requestJson(`/payroll/lines/${line.line_id}/approve`, { method: 'POST', body: '{}' });
+              renderRun(result.run);
+              setMessage('Employee approval saved.');
+            } catch (error) { setMessage(error.message, true); }
+          });
+          statusCell.append(approve);
+          if (line.payment_status === 'not_payable') {
+            statusCell.textContent = 'No payment due';
+          }
         }
         row.appendChild(statusCell);
         payrollLines.appendChild(row);
@@ -197,6 +239,34 @@
         const result = await requestJson(`/payroll/runs/${currentRun.run_id}/approve`, { method: 'POST', body: '{}' });
         renderRun(result.run);
         setMessage('Payroll run approved.');
+      } catch (error) { setMessage(error.message, true); }
+    });
+
+    document.getElementById('overduesButton').addEventListener('click', async () => {
+      if (!currentRun) {
+        setMessage('Generate a run first to review overdue payments.', true);
+        return;
+      }
+      try {
+        const result = await requestJson(`/payroll/runs/${currentRun.run_id}/overdues`);
+        const overdueRows = document.getElementById('overdueRows');
+        overdueRows.replaceChildren();
+        const section = document.getElementById('overduesSection');
+        if (!result.overdues.length) {
+          section.hidden = false;
+          overdueRows.innerHTML = '<tr><td class="empty" colspan="4">No overdue records for this run.</td></tr>';
+          return;
+        }
+        section.hidden = false;
+        for (const item of result.overdues) {
+          const row = document.createElement('tr');
+          appendCell(row, `${item.employee_name} (#${item.empid})`);
+          appendCell(row, item.pay_term || '—');
+          appendCell(row, money(item.amount), 'amount');
+          appendCell(row, item.payment_status || 'pending');
+          overdueRows.appendChild(row);
+        }
+        setMessage('Overdue portfolio displayed.');
       } catch (error) { setMessage(error.message, true); }
     });
 

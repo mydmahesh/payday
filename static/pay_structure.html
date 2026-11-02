@@ -54,11 +54,9 @@
       cursor: pointer;
       border: none;
       border-radius: 6px;
-      color: white;
+      color: var(--button-text);
     }
-    #searchBtnMain { background: #2980b9; }
-    #addBtnMain    { background: #27ae60; }
-    #saveBtn       { background: #e67e22; font-size: 18px; padding: 14px 60px; }
+    #saveBtn       { font-size: 18px; padding: 14px 60px; }
     label {
       display: block;
       margin-bottom: 8px;
@@ -88,17 +86,21 @@
     }
     th { background: #ecf0f1; }
     .edit-link {
-      color: #e67e22;
+      color: var(--primary-blue);
       font-weight: bold;
       text-decoration: none;
+    }
+
+    .edit-link:hover {
+      color: var(--primary-blue-hover);
     }
     .back-link {
       position: fixed;
       top: 20px;
       left: 20px;
       padding: 10px 20px;
-      background: #2980b9;
-      color: white;
+      background: var(--primary-blue);
+      color: var(--button-text);
       font-weight: bold;
       text-decoration: none;
       border-radius: 8px;
@@ -115,6 +117,20 @@
       transform: scale(1.04);
       opacity: 0.92;
     }
+
+    .setup-link {
+      display: block;
+      width: fit-content;
+      position: relative;
+      top: -8px;
+      margin: 0 0 20px auto;
+      padding: 10px 16px;
+      background: var(--success-green);
+      color: var(--button-text);
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -126,6 +142,8 @@
 </a>
 <h1>Pay Structure</h1>
 </div>
+
+<a href="/pay_structure_setup" class="setup-link">Pay Structure Setup</a>
 
 <div class="buttons">
   <button id="searchBtnMain">Search Pay Structures</button>
@@ -141,7 +159,7 @@
       <input type="number" id="searchEmpId" placeholder="e.g. 1001">
     </div>
     <div style="flex: 1; min-width: 220px; align-self: flex-end;">
-      <button id="doSearchBtn" style="background:#3498db; padding:14px 40px;">Search</button>
+      <button id="doSearchBtn" style="padding:14px 40px;">Search</button>
     </div>
   </div>
 
@@ -242,7 +260,7 @@ function showToast(msg, type = 'success') {
   const toast = document.createElement('div');
   toast.textContent = msg;
   toast.style.cssText = `
-    position:fixed; top:20px; right:20px; z-index:2000;
+    position:fixed; bottom:20px; right:20px; z-index:2000;
     padding:16px 24px; border-radius:8px; color:white; font-weight:bold;
     background: ${type==='success'?'#27ae60':'#e74c3c'};
     box-shadow:0 4px 12px rgba(0,0,0,0.25);

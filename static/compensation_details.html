@@ -35,19 +35,8 @@
     }
 
     #saveBtn {
-      background-color: var(--secondary-orange);
-    }
-
-    #saveBtn:hover {
-      background-color: #d35400;
-    }
-
-    #searchBtn {
-      background-color: var(--primary-blue);
-    }
-
-    #searchBtn:hover {
-      background-color: var(--primary-blue-hover);
+      padding: 16px 60px;
+      font-size: 1.2em;
     }
 
     table {
@@ -64,16 +53,10 @@
     }
 
     .edit-btn {
-      background-color: var(--success-green);
-      color: white;
       border: none;
       padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
-    }
-
-    .edit-btn:hover {
-      background-color: var(--success-green-hover);
     }
 
     .section {
@@ -128,20 +111,8 @@
       cursor: pointer;
       border: none;
       border-radius: 6px;
-      color: white;
+      color: var(--button-text);
       transition: background 0.2s;
-    }
-	#addBtnMain {
-      background: #27ae60;
-    }
-    #addBtnMain:hover {
-      background: #219653;
-    }
-    #searchBtnMain {
-      background: #2980b9;
-    }
-    #searchBtnMain:hover {
-      background: #2471a3;
     }
 	.form-container, .search-container {
       display: none;
@@ -161,21 +132,6 @@
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
 
-<div class="back-link">
-  <a href="/" style="
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 10px 20px;
-  background: #2980b9;
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-">Home</a>
-</div>
   <h1>Compensation Details</h1>
 
 <div class="buttons">
@@ -384,7 +340,7 @@
         </table>
 
         <div style="margin-top: 30px; text-align: center;">
-          <button type="submit" id="saveBtn" style="background:#e67e22; color:white; padding:16px 60px; font-size:1.2em; border:none; border-radius:8px; cursor:pointer;">
+          <button type="submit" id="saveBtn">
             Save Compensation Details
           </button>
         </div>
@@ -400,7 +356,7 @@
     const toast = document.createElement('div');
     toast.textContent = message;
     toast.style.cssText = `
-      position: fixed; top: 20px; right: 20px; z-index: 1000;
+      position: fixed; bottom: 20px; right: 20px; z-index: 1000;
       padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
       background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);

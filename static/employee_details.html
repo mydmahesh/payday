@@ -49,7 +49,7 @@
   </style>
 </head>
 <body>
-<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000; max-width: 350px;"></div>
+<div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 2000; max-width: 350px;"></div>
 <a href="/" class="home-btn">Home</a>
 
   <div class="header">
@@ -105,7 +105,7 @@
     <option value="CEO">CEO</option>
 	</select>
 	</div>
-    <button id="doSearchBtn" class="action-btn" style="background:#2980b9; color:white;">Search</button>
+    <button id="doSearchBtn" class="action-btn">Search</button>
 
     <div id="searchMessage"></div>
 
@@ -127,10 +127,7 @@
 
   <!-- Add Employee Form -->
   <div id="addFormContainer" class="form-container">
-  <button type="button" id="clearBtn" style="position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 10px 15px;background:#dc3545; color:white; margin-left:15px;">
+  <button type="button" id="clearBtn">
   Clear Form
 </button>
   
@@ -178,7 +175,7 @@
           <input type="checkbox" id="is_active" checked> Active
         </label>
       </div>
-      <button type="submit" class="action-btn" style="background:#27ae60; color:white;">Get Emp ID</button>
+      <button type="submit" class="action-btn">Get Emp ID</button>
     </form>
 
   
@@ -192,7 +189,7 @@
       const toast = document.createElement('div');
       toast.textContent = message;
       toast.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 2000;
+        position: fixed; bottom: 20px; right: 20px; z-index: 2000;
         padding: 16px 24px; border-radius: 8px; color: white; font-weight: bold;
         background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -346,8 +343,7 @@ document.getElementById('doSearchBtn').addEventListener('click', async () => {
           <td>${emp.grade || ''}</td>
           <td>${emp.is_active ? 'Yes' : 'No'}</td>
           <td>
-            <a href="/static/edit_employee_details.html?id=${emp.empid}"
-               style="color: #e67e22; font-weight: bold; text-decoration: none;">
+            <a href="/static/edit_employee_details.html?id=${emp.empid}" class="edit-link">
               Edit
             </a>
           </td>

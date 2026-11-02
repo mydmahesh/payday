@@ -18,10 +18,9 @@
 :root {
   --primary-blue: #2980b9;
   --primary-blue-hover: #2471a3;
-  --secondary-orange: #f39c12;
-  --secondary-orange-hover: #e67e22;
   --success-green: #27ae60;
   --success-green-hover: #219653;
+  --button-text: #ffffff;
   --error-red: #e74c3c;
   --bg-light: #f9f9f9;
   --bg-white: #ffffff;
@@ -153,7 +152,8 @@ button {
   font-size: 17px;
   border: none;
   border-radius: 6px;
-  color: white;
+  color: var(--button-text);
+  background-color: var(--primary-blue);
   cursor: pointer;
   transition: background 0.2s ease, transform 0.1s ease;
   font-weight: 500;
@@ -203,26 +203,24 @@ button:disabled {
 
 /* Orange / Secondary */
 .action-btn.secondary,
-button[type="submit"],
 .btn-secondary {
-  background-color: var(--secondary-orange);
+  background-color: var(--primary-blue);
 }
 
 .action-btn.secondary:hover,
-button[type="submit"]:hover,
 .btn-secondary:hover {
-  background-color: var(--secondary-orange-hover);
+  background-color: var(--primary-blue-hover);
 }
 
 /* Error Red */
 #clearBtn,
 .btn-danger {
-  background-color: var(--error-red);
+  background-color: var(--primary-blue);
 }
 
 #clearBtn:hover,
 .btn-danger:hover {
-  background-color: #c0392b;
+  background-color: var(--primary-blue-hover);
 }
 
 /* ============ BUTTON GROUPS ============ */
@@ -340,7 +338,7 @@ tbody tr:nth-child(even) {
 /* ============ TOAST NOTIFICATIONS ============ */
 .toast {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   padding: 16px 24px;
   border-radius: 8px;
@@ -465,9 +463,10 @@ tbody tr:nth-child(even) {
   }
 
   .toast {
-    top: 10px;
+    bottom: 10px;
     right: 10px;
-    left: 10px;
+    left: auto;
+    max-width: calc(100vw - 20px);
     min-width: auto;
   }
 }
@@ -561,7 +560,7 @@ a.home-btn,
   border: 0 !important;
   border-radius: 16px !important;
   background: var(--primary-blue) !important;
-  color: #ffffff !important;
+  color: var(--button-text) !important;
   box-shadow: var(--button-shadow) !important;
   font-size: 1.25rem !important;
   font-weight: 700 !important;
@@ -572,7 +571,7 @@ a.home-btn,
 a.home-btn:hover,
 .home-btn:hover {
   background: var(--primary-blue-hover) !important;
-  color: #ffffff !important;
+  color: var(--button-text) !important;
 }
 
 a.page-return,
@@ -605,6 +604,24 @@ a.page-return:hover,
   text-decoration: underline !important;
 }
 
+.edit-link {
+  color: var(--primary-blue);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.edit-link:hover {
+  color: var(--primary-blue-hover);
+  text-decoration: underline;
+}
+
+.edit-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  color: var(--button-text) !important;
+  text-decoration: none;
+}
+
 .btn-employee,
 .btn-bank,
 .btn-salary,
@@ -631,7 +648,7 @@ a.page-return:hover,
 
 button {
   background-color: var(--primary-blue) !important;
-  color: #ffffff !important;
+  color: var(--button-text) !important;
 }
 
 button:hover {
@@ -641,20 +658,73 @@ button:hover {
 #addBtnMain,
 #saveBtn,
 button[type="submit"],
-.btn-success {
+.btn-success,
+.pay-btn,
+.edit-btn,
+.primary {
   background-color: var(--success-green) !important;
 }
 
 #addBtnMain:hover,
 #saveBtn:hover,
 button[type="submit"]:hover,
-.btn-success:hover {
+.btn-success:hover,
+.pay-btn:hover,
+.edit-btn:hover,
+.primary:hover {
   background-color: var(--success-green-hover) !important;
+}
+
+button.btn-primary,
+.btn-primary {
+  background-color: var(--primary-blue) !important;
+}
+
+button.btn-primary:hover,
+.btn-primary:hover {
+  background-color: var(--primary-blue-hover) !important;
 }
 
 .btn,
 .btn:hover {
-  color: #ffffff !important;
+  color: var(--button-text) !important;
+}
+
+.secondary,
+.btn-secondary {
+  background-color: var(--primary-blue) !important;
+  color: var(--button-text) !important;
+}
+
+.secondary:hover,
+.btn-secondary:hover {
+  background-color: var(--primary-blue-hover) !important;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: var(--primary-blue);
+  color: var(--button-text);
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.button-link:hover {
+  background-color: var(--primary-blue-hover);
+}
+
+.button-link:active {
+  transform: scale(0.98);
+}
+
+#clearBtn {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  padding: 10px 15px;
+  margin-left: 15px;
 }
 
 @media (max-width: 480px) {
