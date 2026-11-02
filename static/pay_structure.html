@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pay Structure Search - PayDay</title>
+  <link rel="stylesheet" href="/static/styles.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -119,7 +120,7 @@
 <body>
 
 <div class="header">
-<a href="/" class="back-link">Home</a>
+<a href="/" class="home-btn">Home</a>
 <a href="/" class="logo-link">
   <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
 </a>
@@ -155,6 +156,7 @@
         <th>Monthly Salary</th>
         <th>Job ID</th>
         <th>Pay Group</th>
+        <th>Employment Type</th>
         <th>Active</th>
         <th>Action</th>
       </tr>
@@ -274,7 +276,6 @@ document.getElementById('addBtnMain').addEventListener('click', () => {
   document.getElementById('searchContainer').style.display = 'none';
 });
 
-
 // --------------------------------------------------
 //   Search
 // --------------------------------------------------
@@ -286,6 +287,7 @@ document.getElementById('doSearchBtn').onclick = async () => {
 
   tbody.innerHTML = '';
   msgEl.textContent = '';
+  table.style.display = 'none';
 
   let url = '/pay_structure_list';
   if (empid) url += `?empid=${encodeURIComponent(empid)}`;
@@ -319,10 +321,46 @@ document.getElementById('doSearchBtn').onclick = async () => {
       return;
     }
 
+    if (data.structures.length === 0 && empid) {
+      const employeeResponse = await fetch(`/employee/${encodeURIComponent(empid)}`, {
+        credentials: 'same-origin',
+        headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
+      });
+      const employeeResult = await employeeResponse.json();
+      if (!employeeResponse.ok || employeeResult.status !== 'success') {
+        msgEl.textContent = employeeResult.message || 'Employee not found';
+        msgEl.style.background = '#f8d7da';
+        return;
+      }
+      const employee = employeeResult.employee;
+      const row = document.createElement('tr');
+      const values = [
+        employee.empid,
+        `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
+        '-', '-', '-', '-', employee.employment_type || 'Unclassified', '-'
+      ];
+      values.forEach(value => {
+        const cell = document.createElement('td');
+        cell.textContent = value || '-';
+        row.appendChild(cell);
+      });
+      const actionCell = document.createElement('td');
+      const addLink = document.createElement('a');
+      addLink.href = `/static/pay_structure_add.html?empid=${encodeURIComponent(employee.empid)}`;
+      addLink.className = 'edit-link';
+      addLink.textContent = 'Add Pay Structure';
+      actionCell.appendChild(addLink);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+      table.style.display = 'table';
+      msgEl.textContent = `Employee ${employee.empid} has no pay structure. Classification: ${employee.employment_type || 'Unclassified'}.`;
+      msgEl.style.background = '#fff3cd';
+      return;
+    }
+
     if (data.structures.length === 0) {
       msgEl.textContent = 'No pay structure records found';
       msgEl.style.background = '#fff3cd';
-      table.style.display = 'none';
       return;
     }
 
@@ -335,6 +373,7 @@ document.getElementById('doSearchBtn').onclick = async () => {
         <td>${item.salary ? '₹' + Number(item.salary).toLocaleString('en-IN') : '-'}</td>
         <td>${item.job_id || '-'}</td>
         <td>${item.pay_group || '-'}</td>
+        <td>${item.employment_type || 'Unclassified'}</td>
         <td style="text-align: center;">
           <input type="radio" name="active-${item.empid}" data-record-id="${item.id}" ${item.active ? 'checked' : ''} />
         </td>

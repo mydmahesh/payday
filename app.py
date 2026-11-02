@@ -1,7 +1,19 @@
 from flask import Flask, request, jsonify, session, redirect, url_for, flash, render_template
+import calendar
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from payroll import (
+    EMPLOYMENT_TYPES,
+    PAYMENT_STATUSES,
+    PayrollError,
+    calendar_day_details,
+    create_or_refresh_run,
+    ensure_payroll_schema,
+    parse_iso_date,
+    payroll_run_payload,
+    update_run_payment_status,
+)
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a secure key
@@ -142,6 +154,12 @@ def as_bool(value):
 init_db()
 ensure_pay_structure_schema()
 ensure_payments_schema()
+payroll_connection = get_db_connection()
+try:
+    ensure_payroll_schema(payroll_connection)
+    payroll_connection.commit()
+finally:
+    payroll_connection.close()
 
 @app.before_request
 def require_login():
@@ -686,7 +704,8 @@ def pay_structure_list():
             ps.active,
             ps.updated_at,
             ps.notes,
-            e.hire_date
+            e.hire_date,
+            e.employment_type
         FROM pay_structure ps
         LEFT JOIN pd_employees e ON ps.empid = e.empid
     """
@@ -780,8 +799,16 @@ def save_pay_structure():
         pay_group  = (data.get('pay_group')  or '').strip()
         notes      = (data.get('notes')      or '').strip()
         active     = data.get('active')
+        employment_type_supplied = 'employment_type' in data
+        employment_type = (data.get('employment_type') or '').strip().lower()
         # Normalize active flag
         active = True if str(active).lower() in ['1', 'true', 'yes'] else False
+
+        if employment_type_supplied and employment_type not in EMPLOYMENT_TYPES:
+            return jsonify({
+                "status": "error",
+                "message": "Choose permanent, contractor, or contingent",
+            }), 400
 
         if not empid:
             return jsonify({"status": "error", "message": "Employee ID is required"}), 400
@@ -825,6 +852,12 @@ def save_pay_structure():
                 (empid, name, pay_term, salary, job_id, pay_group, active, updated_at, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
             """, (empid, name, pay_term, salary, job_id, pay_group, int(active), notes))
+
+        if employment_type_supplied:
+            cursor.execute(
+                'UPDATE pd_employees SET employment_type = ? WHERE empid = ?',
+                (employment_type, empid),
+            )
 
         conn.commit()
         conn.close()
@@ -1084,114 +1117,345 @@ def get_personal_record(empid):
         }), 400
 @app.route('/pay')
 def pay():
-    return app.send_static_file('pay.html')
+    return app.send_static_file('payroll.html')
+
+
+@app.route('/attendance')
+def attendance():
+    return app.send_static_file('attendance.html')
+
+
+@app.route('/payroll/employees', methods=['GET'])
+def payroll_employees():
+    conn = get_db_connection()
+    query = '''
+        SELECT empid, first_name, last_name, hire_date, is_active, employment_type
+        FROM pd_employees
+    '''
+    if request.args.get('with_active_pay_structure') in {'1', 'true', 'yes'}:
+        query += '''
+            WHERE is_active = 1
+              AND EXISTS (
+                  SELECT 1 FROM pay_structure ps
+                  WHERE ps.empid = pd_employees.empid AND ps.active = 1
+              )
+        '''
+    query += ' ORDER BY first_name, last_name, empid'
+    rows = conn.execute(query).fetchall()
+    conn.close()
+    return jsonify({"status": "success", "employees": [dict(row) for row in rows]})
+
+
+@app.route('/payroll/employees/<int:empid>/employment-type', methods=['POST'])
+def set_payroll_employment_type(empid):
+    data = request.get_json(silent=True) or {}
+    employment_type = (data.get('employment_type') or '').strip().lower()
+    if employment_type not in EMPLOYMENT_TYPES:
+        return jsonify({"status": "error", "message": "Choose permanent, contractor, or contingent"}), 400
+    conn = get_db_connection()
+    cursor = conn.execute(
+        'UPDATE pd_employees SET employment_type = ? WHERE empid = ?',
+        (employment_type, empid),
+    )
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        return jsonify({"status": "error", "message": "Employee not found"}), 404
+    return jsonify({"status": "success", "message": "Employment type saved"})
+
+
+@app.route('/payroll/attendance', methods=['GET', 'POST'])
+def payroll_attendance():
+    conn = get_db_connection()
+    if request.method == 'GET':
+        start = request.args.get('start_date')
+        end = request.args.get('end_date')
+        empid = request.args.get('empid')
+        work_date_filter = request.args.get('work_date')
+        status_filter = (request.args.get('status') or '').strip().lower()
+        clauses = [
+            'e.is_active = 1',
+            '''EXISTS (
+                SELECT 1 FROM pay_structure ps
+                WHERE ps.empid = e.empid AND ps.active = 1
+            )''',
+        ]
+        params = []
+        try:
+            if start:
+                start = parse_iso_date(start, 'start_date').isoformat()
+                clauses.append('a.work_date >= ?')
+                params.append(start)
+            if end:
+                end = parse_iso_date(end, 'end_date').isoformat()
+                clauses.append('a.work_date <= ?')
+                params.append(end)
+            if work_date_filter:
+                work_date_filter = parse_iso_date(work_date_filter, 'work_date').isoformat()
+                clauses.append('a.work_date = ?')
+                params.append(work_date_filter)
+        except PayrollError as exc:
+            conn.close()
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        if empid:
+            clauses.append('a.empid = ?')
+            params.append(empid)
+        if status_filter:
+            if status_filter not in {'present', 'absent', 'leave'}:
+                conn.close()
+                return jsonify({"status": "error", "message": "Status must be present, absent, or leave"}), 400
+            clauses.append('a.status = ?')
+            params.append(status_filter)
+        query = '''SELECT a.*, e.first_name, e.last_name FROM attendance_daily a
+                   JOIN pd_employees e ON e.empid = a.empid
+                   WHERE ''' + ' AND '.join(clauses)
+        query += ' ORDER BY a.work_date DESC, a.empid LIMIT 1000'
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+        return jsonify({"status": "success", "attendance": [dict(row) for row in rows]})
+
+    data = request.get_json(silent=True) or {}
+    try:
+        empid = int(data.get('empid'))
+        work_date = parse_iso_date(data.get('work_date'), 'work_date').isoformat()
+    except (TypeError, ValueError, PayrollError) as exc:
+        conn.close()
+        return jsonify({"status": "error", "message": str(exc) or "Employee ID is required"}), 400
+    status = (data.get('status') or '').strip().lower()
+    if status not in {'present', 'absent', 'leave'}:
+        conn.close()
+        return jsonify({"status": "error", "message": "Status must be present, absent, or leave"}), 400
+    employee = conn.execute(
+        'SELECT empid, is_active FROM pd_employees WHERE empid = ?', (empid,)
+    ).fetchone()
+    if employee is None:
+        conn.close()
+        return jsonify({"status": "error", "message": "Employee not found"}), 404
+    if not employee['is_active']:
+        conn.close()
+        return jsonify({"status": "error", "message": "Employee is not active"}), 400
+    active_structure = conn.execute(
+        'SELECT 1 FROM pay_structure WHERE empid = ? AND active = 1 LIMIT 1',
+        (empid,),
+    ).fetchone()
+    if active_structure is None:
+        conn.close()
+        return jsonify({"status": "error", "message": "Employee has no active pay structure"}), 400
+    conn.execute('''
+        INSERT INTO attendance_daily (empid, work_date, status, notes)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(empid, work_date) DO UPDATE SET
+            status = excluded.status, notes = excluded.notes, updated_at = CURRENT_TIMESTAMP
+    ''', (empid, work_date, status, data.get('notes')))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success", "message": "Attendance saved"})
+
+
+@app.route('/payroll/calendar', methods=['GET', 'POST'])
+def payroll_calendar():
+    conn = get_db_connection()
+    if request.method == 'GET':
+        start = request.args.get('start_date')
+        end = request.args.get('end_date')
+        today = date.today()
+        try:
+            start_date = parse_iso_date(start, 'start_date') if start else None
+            end_date = parse_iso_date(end, 'end_date') if end else None
+        except PayrollError as exc:
+            conn.close()
+            return jsonify({"status": "error", "message": str(exc)}), 400
+        if start_date is None and end_date is None:
+            start_date = date(today.year, today.month, 1)
+            end_date = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+        elif start_date is None:
+            start_date = date(end_date.year, end_date.month, 1)
+        elif end_date is None:
+            end_date = date(start_date.year, start_date.month, calendar.monthrange(start_date.year, start_date.month)[1])
+        if start_date > end_date:
+            conn.close()
+            return jsonify({"status": "error", "message": "start_date must be on or before end_date"}), 400
+        rows = calendar_day_details(
+            conn, start_date, end_date
+        )
+        conn.close()
+        return jsonify({"status": "success", "calendar": rows})
+
+    data = request.get_json(silent=True) or {}
+    try:
+        work_date_value = parse_iso_date(data.get('work_date'), 'work_date')
+        work_date = work_date_value.isoformat()
+    except PayrollError as exc:
+        conn.close()
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    working_day = data.get('is_working_day')
+    if working_day not in (True, False, 0, 1):
+        conn.close()
+        return jsonify({"status": "error", "message": "is_working_day must be true or false"}), 400
+    if work_date_value.weekday() == 6:
+        conn.close()
+        return jsonify({
+            "status": "error",
+            "message": "Sundays are default holidays and cannot be overridden",
+        }), 400
+    conn.execute('''
+        INSERT INTO work_calendar (work_date, is_working_day, description)
+        VALUES (?, ?, ?)
+        ON CONFLICT(work_date) DO UPDATE SET
+            is_working_day = excluded.is_working_day, description = excluded.description
+    ''', (work_date, int(working_day), data.get('description')))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success", "message": "Calendar override saved"})
+
+
+@app.route('/payroll/runs', methods=['POST'])
+def create_payroll_run():
+    data = request.get_json(silent=True) or {}
+    try:
+        cutoff = parse_iso_date(data.get('cutoff_date'), 'cutoff_date')
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    conn = get_db_connection()
+    try:
+        with conn:
+            run_id = create_or_refresh_run(conn, cutoff)
+        return jsonify({"status": "success", "run": payroll_run_payload(conn, run_id)})
+    except PayrollError as exc:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(exc)}), 409
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>', methods=['GET'])
+def get_payroll_run(run_id):
+    conn = get_db_connection()
+    run = payroll_run_payload(conn, run_id)
+    conn.close()
+    if run is None:
+        return jsonify({"status": "error", "message": "Payroll run not found"}), 404
+    return jsonify({"status": "success", "run": run})
+
+
+@app.route('/payroll/runs/<int:run_id>/approve', methods=['POST'])
+def approve_payroll_run(run_id):
+    conn = get_db_connection()
+    try:
+        with conn:
+            run = conn.execute(
+                'SELECT status, exception_count FROM payroll_runs WHERE run_id = ?', (run_id,)
+            ).fetchone()
+            if run is None:
+                return jsonify({"status": "error", "message": "Payroll run not found"}), 404
+            if run['status'] != 'draft':
+                return jsonify({"status": "error", "message": "Only draft runs can be approved"}), 409
+            if run['exception_count']:
+                return jsonify({"status": "error", "message": "Resolve all payroll exceptions before approval"}), 400
+            conn.execute(
+                "UPDATE payroll_runs SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE run_id = ?",
+                (run_id,),
+            )
+            update_run_payment_status(conn, run_id)
+        return jsonify({"status": "success", "run": payroll_run_payload(conn, run_id)})
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>/record-payments', methods=['POST'])
+def record_payroll_payments(run_id):
+    conn = get_db_connection()
+    try:
+        with conn:
+            run = conn.execute(
+                'SELECT status FROM payroll_runs WHERE run_id = ?', (run_id,)
+            ).fetchone()
+            if run is None:
+                return jsonify({"status": "error", "message": "Payroll run not found"}), 404
+            if run['status'] not in {'approved', 'partially_paid'}:
+                return jsonify({"status": "error", "message": "Approve the payroll run before recording payments"}), 409
+            lines = conn.execute('''
+                SELECT l.line_id, l.empid, l.employee_name, l.pay_group, l.pay_term,
+                       l.amount_minor, e.hire_date
+                FROM payroll_lines l
+                JOIN pd_employees e ON e.empid = l.empid
+                LEFT JOIN payments p ON p.payroll_line_id = l.line_id
+                WHERE l.run_id = ? AND l.line_status = 'ready' AND l.amount_minor > 0
+                  AND p.payment_id IS NULL
+            ''', (run_id,)).fetchall()
+            for line in lines:
+                payment_ref = f"PAYROLL-{run_id}-{line['empid']}"
+                conn.execute('''
+                    INSERT INTO payments (
+                        empid, name, hire_date, pay_group, pay_term, pay_amount,
+                        payment_handling_code, payment_status, recon_status, payment_ref, payroll_line_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'PAYROLL', 'pending', 'pending', ?, ?)
+                ''', (
+                    line['empid'], line['employee_name'], line['hire_date'], line['pay_group'],
+                    line['pay_term'], line['amount_minor'] / 100, payment_ref, line['line_id'],
+                ))
+                conn.execute(
+                    "UPDATE payroll_lines SET payment_status = 'pending' WHERE line_id = ?",
+                    (line['line_id'],),
+                )
+            update_run_payment_status(conn, run_id)
+        return jsonify({"status": "success", "recorded_count": len(lines), "run": payroll_run_payload(conn, run_id)})
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/lines/<int:line_id>/payment-status', methods=['POST'])
+def update_payroll_payment_status(line_id):
+    data = request.get_json(silent=True) or {}
+    payment_status = (data.get('payment_status') or '').strip().lower()
+    if payment_status not in PAYMENT_STATUSES:
+        return jsonify({"status": "error", "message": "Payment status must be pending, completed, or failed"}), 400
+    conn = get_db_connection()
+    try:
+        with conn:
+            line = conn.execute('''
+                SELECT l.run_id, p.payment_id, p.payment_status AS current_payment_status,
+                       r.status AS run_status
+                FROM payroll_lines l JOIN payroll_runs r ON r.run_id = l.run_id
+                LEFT JOIN payments p ON p.payroll_line_id = l.line_id
+                WHERE l.line_id = ?
+            ''', (line_id,)).fetchone()
+            if line is None or line['payment_id'] is None:
+                return jsonify({"status": "error", "message": "Payment record not found"}), 404
+            if line['run_status'] not in {'approved', 'partially_paid'}:
+                return jsonify({"status": "error", "message": "Payment status cannot be changed in this run state"}), 409
+            transitions = {
+                'pending': {'completed', 'failed'},
+                'failed': {'pending'},
+                'completed': set(),
+            }
+            current_status = line['current_payment_status']
+            if payment_status != current_status and payment_status not in transitions.get(current_status, set()):
+                return jsonify({
+                    "status": "error",
+                    "message": f"Payment status cannot move from {current_status} to {payment_status}",
+                }), 409
+            conn.execute(
+                'UPDATE payments SET payment_status = ? WHERE payment_id = ?',
+                (payment_status, line['payment_id']),
+            )
+            conn.execute(
+                'UPDATE payroll_lines SET payment_status = ? WHERE line_id = ?',
+                (payment_status, line_id),
+            )
+            run_status = update_run_payment_status(conn, line['run_id'])
+        return jsonify({"status": "success", "run_status": run_status})
+    finally:
+        conn.close()
 
 
 # NEW: Process payment endpoint (called when user clicks "Pay Now")
 @app.route('/process_pay', methods=['POST'])
 def process_pay():
-    data = request.get_json()
-    
-    required_fields = ['empid', 'pay_term', 'amount', 'monthly_salary']  # monthly_salary will be provided by frontend
-    for field in required_fields:
-        if field not in data:
-            return jsonify({
-                'status': 'error',
-                'message': f'Missing required field: {field}'
-            }), 400
-    
-    empid = data['empid']
-    pay_term = data['pay_term']
-    amount = float(data['amount'])
-    monthly_salary = float(data['monthly_salary'])
-    
-    if amount <= 0:
-        return jsonify({
-            'status': 'error',
-            'message': 'Invalid payment amount'
-        }), 400
-    
-    conn = get_db_connection()
-    
-    # Verify employee exists and is active (no salary check any more)
-    employee = conn.execute('''
-        SELECT empid, is_active
-        FROM pd_employees
-        WHERE empid = ?
-    ''', (empid,)).fetchone()
-    
-    if employee is None:
-        conn.close()
-        return jsonify({
-            'status': 'error',
-            'message': 'Employee not found'
-        }), 404
-    
-    if not employee['is_active']:
-        conn.close()
-        return jsonify({
-            'status': 'error',
-            'message': 'Employee is not active'
-        }), 400
-
-    # Check if there's an active unpaid pay structure for this employee
-    pay_structure = conn.execute('''
-        SELECT id, pay_term, pay_group, salary
-        FROM pay_structure
-        WHERE empid = ? AND active = 1 AND paid = 0
-    ''', (empid,)).fetchone()
-
-    if pay_structure is None:
-        conn.close()
-        return jsonify({
-            'status': 'error',
-            'message': 'No active unpaid pay structure found for this employee'
-        }), 400
-
-    # Verify the pay_term matches (optional, but good check)
-    if pay_structure['pay_term'] != pay_term:
-        conn.close()
-        return jsonify({
-            'status': 'error',
-            'message': f'Pay term mismatch: expected {pay_structure["pay_term"]}, got {pay_term}'
-        }), 400
-
-    # Save payment into payments table
-    payment_handling_code = data.get('payment_handling_code') or 'AUTO'
-    payment_status = data.get('payment_status') or 'completed'
-    payment_ref = data.get('payment_ref') or f"PAY-{int(datetime.now().timestamp())}"
-    reconcile_date = data.get('reconcile_date')  # optional
-    recon_status = data.get('recon_status') or 'pending'
-
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO payments (
-            empid, name, hire_date, pay_group, pay_term, pay_amount,
-            payment_date, payment_handling_code, payment_status,
-            reconcile_date, recon_status, payment_ref
-        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
-    ''', (
-        empid, data.get('name'), data.get('hire_date'), data.get('pay_group'), pay_term, amount,
-        payment_handling_code, payment_status, reconcile_date, recon_status, payment_ref
-    ))
-    conn.commit()
-
-    payment_id = cursor.lastrowid
-    cursor.execute('SELECT * FROM payments WHERE payment_id = ?', (payment_id,))
-    payment_row = cursor.fetchone()
-    payment_record = dict(payment_row) if payment_row else None
-
-    # Mark the pay structure as paid
-    cursor.execute('UPDATE pay_structure SET paid = 1 WHERE id = ?', (pay_structure['id'],))
-    conn.commit()
-
-    conn.close()
-
     return jsonify({
-        'status': 'success',
-        'message': f'Payment of ₹{amount:,.2f} processed successfully for employee {empid}',
-        'payment': payment_record
-    })
+        'status': 'error',
+        'message': 'This legacy endpoint is disabled. Create and approve a payroll run instead.'
+    }), 410
 
 
 # Optional: Add this if you want to see all payments later (for testing)
