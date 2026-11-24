@@ -339,11 +339,19 @@ def resolve_employee(conn, empid):
     row = cursor.fetchone()
     if row:
         return row
+    # Extract numeric part and try exact match on the numeric suffix
+    # This avoids overly broad LIKE patterns that could match wrong employees
     digits = ''.join(c for c in clean if c.isdigit())
     if digits:
         num = int(digits)
-        cursor.execute("SELECT * FROM pd_employees WHERE empid LIKE ? OR empid LIKE ?",
-                       (f"%{num:05d}%", f"%{digits}%"))
+        # Try matching empid that ENDS with the numeric part (e.g., E00123, C00123, M00123)
+        # This is more precise than %digits% which could match C12345 for digits=123
+        cursor.execute("SELECT * FROM pd_employees WHERE empid LIKE ?", (f"%{num:05d}",))
+        row = cursor.fetchone()
+        if row:
+            return row
+        # As fallback, try exact match on just the digits (for legacy numeric-only empids)
+        cursor.execute("SELECT * FROM pd_employees WHERE empid = ?", (digits,))
         row = cursor.fetchone()
         if row:
             return row
@@ -454,7 +462,7 @@ def main_page():
 def add_employee():
     try:
         data = request.get_json()
-        
+
         first_name = data['first_name'].strip()
         last_name  = data['last_name'].strip()
         email      = (data.get('email') or '').strip() or None
@@ -466,21 +474,22 @@ def add_employee():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Calculate next 5-digit number
-        cursor.execute("SELECT empid FROM pd_employees")
-        existing_ids = cursor.fetchall()
-        max_num = 0
-        for row in existing_ids:
-            digits = ''.join(c for c in str(row['empid']) if c.isdigit())
-            if digits:
-                max_num = max(max_num, int(digits))
-        
+
+        # Use atomic INSERT with RETURNING to avoid race condition
+        # First, get the next numeric ID atomically using a subquery
         numeric_id = data.get('numeric_id')
         if numeric_id:
             next_num = int(''.join(c for c in str(numeric_id) if c.isdigit()))
         else:
-            next_num = max(max_num + 1, 1)
+            # Atomically compute next number using MAX on extracted digits
+            cursor.execute("""
+                SELECT COALESCE(MAX(CAST(REPLACE(REPLACE(REPLACE(REPLACE(empid, 'E', ''), 'C', ''), 'S', ''), 'M', '') AS INTEGER)), 0)
+                FROM pd_employees
+                WHERE empid GLOB '*[0-9]*'
+            """)
+            row = cursor.fetchone()
+            max_num = row[0] if row and row[0] is not None else 0
+            next_num = max_num + 1
 
         new_empid = format_empid(next_num, grade)
 
@@ -496,16 +505,35 @@ def add_employee():
             elif grade == 'F':
                 employment_type = 'other'
 
-        cursor.execute('''
-            INSERT INTO pd_employees (empid, first_name, last_name, email, hire_date, grade, is_active, employment_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (new_empid, first_name, last_name, email, hire_date, grade, is_active, employment_type))
-        
-        conn.commit()
+        try:
+            cursor.execute('''
+                INSERT INTO pd_employees (empid, first_name, last_name, email, hire_date, grade, is_active, employment_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (new_empid, first_name, last_name, email, hire_date, grade, is_active, employment_type))
+
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # Race condition: empid already exists, retry with next number
+            conn.rollback()
+            # Find next available number
+            while True:
+                next_num += 1
+                new_empid = format_empid(next_num, grade)
+                try:
+                    cursor.execute('''
+                        INSERT INTO pd_employees (empid, first_name, last_name, email, hire_date, grade, is_active, employment_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (new_empid, first_name, last_name, email, hire_date, grade, is_active, employment_type))
+                    conn.commit()
+                    break
+                except sqlite3.IntegrityError:
+                    conn.rollback()
+                    continue
+
         conn.close()
-        
+
         return jsonify({"status": "success", "message": "Employee added successfully", "empid": new_empid}), 201
-    
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
@@ -531,6 +559,11 @@ def search_employees():
 
         if not field or value is None:
             return jsonify({"status": "error", "message": "Missing search field or value"}), 400
+
+        # Validate field against allowed columns to prevent SQL injection
+        allowed_fields = {'empid', 'first_name', 'last_name', 'email', 'hire_date', 'grade', 'is_active', 'employment_type'}
+        if field not in allowed_fields:
+            return jsonify({"status": "error", "message": f"Invalid search field: {field}"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -598,93 +631,103 @@ def update_employee():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        emp_row = resolve_employee(conn, empid)
-        if not emp_row:
-            conn.close()
-            return jsonify({"status": "error", "message": f"Employee {empid} not found"}), 404
+        # Start explicit transaction
+        cursor.execute('BEGIN TRANSACTION')
 
-        current_empid = emp_row['empid']
-        old_grade = (emp_row['grade'] or '').strip().upper()
-        if not new_grade:
-            new_grade = old_grade or 'B'
+        try:
+            emp_row = resolve_employee(conn, empid)
+            if not emp_row:
+                conn.rollback()
+                conn.close()
+                return jsonify({"status": "error", "message": f"Employee {empid} not found"}), 404
 
-        # Grade promotion rule (Section 2.3)
-        if new_grade != old_grade:
-            new_empid = format_empid(current_empid, new_grade)
-            new_pay_group = grade_to_pay_group(new_grade)
-            
-            if new_grade in ('A', 'B', 'D'):
-                new_emp_type = 'permanent'
-            elif new_grade == 'C':
-                new_emp_type = 'contractor'
-            elif new_grade == 'E':
-                new_emp_type = 'supplier'
-            elif new_grade == 'F':
-                new_emp_type = 'other'
+            current_empid = emp_row['empid']
+            old_grade = (emp_row['grade'] or '').strip().upper()
+            if not new_grade:
+                new_grade = old_grade or 'B'
+
+            # Grade promotion rule (Section 2.3)
+            if new_grade != old_grade:
+                new_empid = format_empid(current_empid, new_grade)
+                new_pay_group = grade_to_pay_group(new_grade)
+
+                if new_grade in ('A', 'B', 'D'):
+                    new_emp_type = 'permanent'
+                elif new_grade == 'C':
+                    new_emp_type = 'contractor'
+                elif new_grade == 'E':
+                    new_emp_type = 'supplier'
+                elif new_grade == 'F':
+                    new_emp_type = 'other'
+                else:
+                    new_emp_type = emp_row['employment_type']
+
+                # Update pd_employees
+                cursor.execute('''
+                    UPDATE pd_employees
+                    SET empid = ?, first_name = ?, last_name = ?, email = ?, hire_date = ?, grade = ?, is_active = ?, employment_type = ?
+                    WHERE empid = ?
+                ''', (new_empid, first_name, last_name, email, hire_date, new_grade, is_active, new_emp_type, current_empid))
+
+                # Cascade empid to related tables
+                for tbl in ['pay_structure', 'bank_details', 'pd_empersonal', 'pd_compensation', 'attendance_daily', 'payments', 'payroll_lines']:
+                    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{tbl}'")
+                    if cursor.fetchone():
+                        cursor.execute(f"UPDATE {tbl} SET empid = ? WHERE empid = ?", (new_empid, current_empid))
+
+                # Update pay_structure pay_group and grade
+                cursor.execute('''
+                    UPDATE pay_structure
+                    SET pay_group = ?, grade = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE empid = ?
+                ''', (new_pay_group, new_grade, new_empid))
+
+                # If promoted to Grade A or B, Pay Term must be Monthly (Default and no change)
+                if new_grade in ('A', 'B'):
+                    cursor.execute('''
+                        UPDATE pay_structure
+                        SET pay_term = 'Monthly', updated_at = CURRENT_TIMESTAMP
+                        WHERE empid = ?
+                    ''', (new_empid,))
+
+                # If changed to E or F, Job ID should be cleared
+                if new_grade in ('E', 'F'):
+                    cursor.execute('''
+                        UPDATE pay_structure
+                        SET job_id = NULL, updated_at = CURRENT_TIMESTAMP
+                        WHERE empid = ?
+                    ''', (new_empid,))
+
+                conn.commit()
+                conn.close()
+
+                return jsonify({
+                    "status": "success",
+                    "message": f"Employee updated and promoted to Grade {new_grade}. New Emp ID is {new_empid}",
+                    "empid": new_empid,
+                    "old_empid": current_empid
+                }), 200
+
             else:
-                new_emp_type = emp_row['employment_type']
-
-            # Update pd_employees
-            cursor.execute('''
-                UPDATE pd_employees
-                SET empid = ?, first_name = ?, last_name = ?, email = ?, hire_date = ?, grade = ?, is_active = ?, employment_type = ?
-                WHERE empid = ?
-            ''', (new_empid, first_name, last_name, email, hire_date, new_grade, is_active, new_emp_type, current_empid))
-
-            # Cascade empid to related tables
-            for tbl in ['pay_structure', 'bank_details', 'pd_empersonal', 'pd_compensation', 'attendance_daily', 'payments', 'payroll_lines']:
-                cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{tbl}'")
-                if cursor.fetchone():
-                    cursor.execute(f"UPDATE {tbl} SET empid = ? WHERE empid = ?", (new_empid, current_empid))
-
-            # Update pay_structure pay_group and grade
-            cursor.execute('''
-                UPDATE pay_structure
-                SET pay_group = ?, grade = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE empid = ?
-            ''', (new_pay_group, new_grade, new_empid))
-
-            # If promoted to Grade A or B, Pay Term must be Monthly (Default and no change)
-            if new_grade in ('A', 'B'):
                 cursor.execute('''
-                    UPDATE pay_structure
-                    SET pay_term = 'Monthly', updated_at = CURRENT_TIMESTAMP
+                    UPDATE pd_employees
+                    SET first_name = ?, last_name = ?, email = ?, hire_date = ?, is_active = ?
                     WHERE empid = ?
-                ''', (new_empid,))
+                ''', (first_name, last_name, email, hire_date, is_active, current_empid))
 
-            # If changed to E or F, Job ID should be cleared
-            if new_grade in ('E', 'F'):
-                cursor.execute('''
-                    UPDATE pay_structure
-                    SET job_id = NULL, updated_at = CURRENT_TIMESTAMP
-                    WHERE empid = ?
-                ''', (new_empid,))
+                conn.commit()
+                conn.close()
 
-            conn.commit()
+                return jsonify({
+                    "status": "success",
+                    "message": "Employee updated successfully",
+                    "empid": current_empid
+                }), 200
+
+        except Exception as e:
+            conn.rollback()
             conn.close()
-
-            return jsonify({
-                "status": "success",
-                "message": f"Employee updated and promoted to Grade {new_grade}. New Emp ID is {new_empid}",
-                "empid": new_empid,
-                "old_empid": current_empid
-            }), 200
-
-        else:
-            cursor.execute('''
-                UPDATE pd_employees
-                SET first_name = ?, last_name = ?, email = ?, hire_date = ?, is_active = ?
-                WHERE empid = ?
-            ''', (first_name, last_name, email, hire_date, is_active, current_empid))
-
-            conn.commit()
-            conn.close()
-
-            return jsonify({
-                "status": "success",
-                "message": "Employee updated successfully",
-                "empid": current_empid
-            }), 200
+            raise e
 
     except Exception as e:
         return jsonify({
@@ -1242,20 +1285,6 @@ def save_pay_structure():
             "message": str(e)
         }), 500
 
-        conn.commit()
-        conn.close()
-
-        return jsonify({
-            "status": "success",
-            "message": "Pay structure saved successfully"
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
-    
 @app.route('/tax-deductions')
 def tax_deductions():
     return app.send_static_file('tax_deductions.html')
@@ -2260,7 +2289,17 @@ def list_payments():
     cursor = conn.cursor()
 
     if empid_filter:
-        cursor.execute('SELECT * FROM payments WHERE empid = ? ORDER BY payment_date DESC', (int(empid_filter),))
+        clean_filter = str(empid_filter).strip()
+        digits = ''.join(c for c in clean_filter if c.isdigit())
+        if digits:
+            num = int(digits)
+            cursor.execute('''
+                SELECT * FROM payments
+                WHERE empid = ? OR UPPER(empid) = UPPER(?) OR empid LIKE ? OR empid LIKE ?
+                ORDER BY payment_date DESC
+            ''', (clean_filter, clean_filter, f"%{num:05d}%", f"%{digits}%"))
+        else:
+            cursor.execute('SELECT * FROM payments WHERE empid = ? OR UPPER(empid) = UPPER(?) ORDER BY payment_date DESC', (clean_filter, clean_filter))
     else:
         cursor.execute('SELECT * FROM payments ORDER BY payment_date DESC LIMIT 500')
 

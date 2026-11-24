@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
@@ -398,8 +398,10 @@ def pay_term_period_bounds(connection: sqlite3.Connection, pay_term: Any, cutoff
         current_week_start = cutoff - timedelta(days=cutoff.weekday())
         period_end = current_week_start + timedelta(days=weekday)
         if cutoff < period_end:
-            period_start = current_week_start - timedelta(days=7)
+            # Cutoff is before period end: period is the previous 2-week cycle
+            period_start = current_week_start - timedelta(days=14)
         else:
+            # Cutoff is on/after period end: period is the current 2-week cycle
             period_start = current_week_start - timedelta(days=7)
         return period_start, period_end
     if normalized == 'one_time':
@@ -480,7 +482,12 @@ def _employee_name(employee: sqlite3.Row) -> str:
 LEAVE_TYPES = ['earned', 'casual', 'sick', 'maternity', 'paternity', 'adoption']
 
 
-def get_or_init_leave_balances(connection: sqlite3.Connection, empid: str) -> dict[str, dict[str, float]]:
+def _compute_leave_balances(connection: sqlite3.Connection, empid: str) -> dict[str, dict[str, float]]:
+    """Compute leave balances without writing to database (read-only).
+
+    This is a pure computation function - use init_or_update_leave_balances()
+    if you need to persist the computed balances.
+    """
     cursor = connection.cursor()
     cursor.execute("SELECT leave_type, max_leaves, used_leaves, available_leaves FROM employee_leave_balances WHERE empid = ?", (str(empid),))
     rows = cursor.fetchall()
@@ -509,6 +516,19 @@ def get_or_init_leave_balances(connection: sqlite3.Connection, empid: str) -> di
         used_l = actual_used.get(lt, balances.get(lt, {}).get('used', 0.0))
         avail_l = max(0.0, max_l - used_l)
         updated_balances[lt] = {'max': max_l, 'used': used_l, 'available': avail_l}
+    return updated_balances
+
+
+def init_or_update_leave_balances(connection: sqlite3.Connection, empid: str) -> dict[str, dict[str, float]]:
+    """Compute and persist leave balances to database.
+
+    Call this explicitly when you need to update stored balances (e.g., after
+    attendance changes, leave approvals, or during payroll processing).
+    """
+    balances = _compute_leave_balances(connection, empid)
+    cursor = connection.cursor()
+    for lt in LEAVE_TYPES:
+        b = balances[lt]
         cursor.execute("""
             INSERT INTO employee_leave_balances (empid, leave_type, max_leaves, used_leaves, available_leaves, updated_at)
             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -517,12 +537,21 @@ def get_or_init_leave_balances(connection: sqlite3.Connection, empid: str) -> di
                 used_leaves = excluded.used_leaves,
                 available_leaves = excluded.available_leaves,
                 updated_at = CURRENT_TIMESTAMP
-        """, (str(empid), lt, max_l, used_l, avail_l))
-    return updated_balances
+        """, (str(empid), lt, b['max'], b['used'], b['available']))
+    return balances
+
+
+def get_or_init_leave_balances(connection: sqlite3.Connection, empid: str) -> dict[str, dict[str, float]]:
+    """Get leave balances, initializing if not present.
+
+    Note: This function persists computed balances to the database.
+    For read-only access, use _compute_leave_balances() directly.
+    """
+    return init_or_update_leave_balances(connection, empid)
 
 
 def get_total_available_leaves(connection: sqlite3.Connection, empid: str) -> float:
-    b = get_or_init_leave_balances(connection, empid)
+    b = _compute_leave_balances(connection, empid)
     return sum(item['available'] for item in b.values())
 
 
@@ -931,12 +960,6 @@ def create_payroll_run_payments(connection: sqlite3.Connection, run_id: int) -> 
         raise PayrollError("Only approved runs can have payments created")
     connection.execute("UPDATE payroll_runs SET status = 'created', updated_at = CURRENT_TIMESTAMP WHERE run_id = ?", (run_id,))
     return "created"
-    result["total_amount"] = result["total_minor"] / 100
-    result["lines"] = [
-        {**dict(line), "amount": line["amount_minor"] / 100}
-        for line in lines
-    ]
-    return result
 
 
 def update_run_payment_status(connection: sqlite3.Connection, run_id: int) -> str:
