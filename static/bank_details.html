@@ -93,7 +93,7 @@
   <h2>Search Bank Records</h2>
   <div class="form-group">
     <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
-    <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+    <input type="text" id="searchEmpId" placeholder="Enter Employee ID">
   </div>
   <button id="searchBankBtn">Search</button>
 
@@ -125,7 +125,7 @@
 
     <div class="form-group">
       <label for="empid">Employee ID *</label>
-      <input type="number" id="empid" required placeholder="Enter Employee ID">
+      <input type="text" id="empid" required placeholder="Enter Employee ID">
     </div>
 
     <div class="form-group">
@@ -216,7 +216,7 @@ document.getElementById('empid').addEventListener('blur', async () => {
   warningEl.style.display = 'none';
   saveBtn.disabled = false;
 
-  if (!empid || isNaN(empid)) return;
+  if (!empid) return;
 
   try {
     // 1. Check if employee exists
@@ -330,7 +330,7 @@ document.getElementById('bankForm').addEventListener('submit', async (e) => {
 
   const data = {
     record_id:      document.getElementById('record_id').value || null,
-    empid:          parseInt(document.getElementById('empid').value),
+    empid:          document.getElementById('empid').value.trim(),
     bank_name:      document.getElementById('bank_name').value.trim(),
     account_number: document.getElementById('account_number').value.trim(),
     ifsc_code:      document.getElementById('ifsc_code').value.trim(),

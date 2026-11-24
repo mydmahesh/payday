@@ -90,6 +90,106 @@
     }
     .status.success { color: #166534; }
     .status.error { color: #b91c1c; }
+
+    .custom-day-container {
+      position: relative;
+    }
+    .custom-day-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .custom-day-group input {
+      flex: 1;
+    }
+    .calendar-toggle-btn {
+      min-height: 44px;
+      padding: 0 14px;
+      background: #e2e8f0;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .calendar-toggle-btn:hover {
+      background: #cbd5e1;
+    }
+    .calendar-popover {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 100;
+      margin-top: 8px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 16px;
+      width: 300px;
+      box-sizing: border-box;
+    }
+    .calendar-popover.active {
+      display: block;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 0.9rem;
+    }
+    .calendar-header select {
+      min-height: 32px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+    .calendar-day-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 600;
+      padding: 0;
+      min-height: unset;
+      transition: all 0.15s ease;
+    }
+    .calendar-day-cell:hover {
+      background: #3b82f6;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+    .calendar-day-cell.selected {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+      font-weight: 700;
+    }
+    .calendar-day-cell.disabled {
+      opacity: 0.25;
+      pointer-events: none;
+      background: #f1f5f9;
+    }
+
     @media (max-width: 640px) {
       .page-shell { padding: 12px; }
       .page-header { flex-direction: column; align-items: flex-start; }
@@ -100,17 +200,18 @@
 </head>
 <body>
   <div class="page-shell">
-    <header class="page-header">
-      <div class="brand">
-        <a href="/" aria-label="PayDay home"><img src="/static/images/Paydaylines1.png" alt="PayDay" /></a>
-        <h1>Pay Structure Setup</h1>
-      </div>
-      <nav class="page-links" aria-label="Setup navigation">
-        <a href="/pay_structure">Back to Pay Structure</a>
-      </nav>
-    </header>
+    
+<div class="header">
+<a href="/" class="home-btn">Home</a>
+<a href="/pay_structure" class="page-return">Back to Pay Structure</a>
+<a href="/" class="logo-link">
+  <img src="static/images/Paydaylines1.png" alt="PayDay Logo" title="Go to home" width="280" height="99">
+</a>
+<h1>Pay Structure Setup</h1>
+</div>
 
     <div class="panel">
+      <h2>1. Pay Structure & Cut-off Rules</h2>
       <p>Define the default cutoff behavior for each pay term so payroll runs stay aligned with the schedule chosen for the employee.</p>
       <div class="setup-grid">
         <label>
@@ -142,7 +243,104 @@
             <option value="custom_day">Use custom day</option>
           </select>
         </label>
+        <div id="custom_day_wrapper" class="custom-day-container" style="display: none;">
+          <label>
+            Custom cutoff day (1 - 31)
+            <div class="custom-day-group">
+              <input type="number" id="monthly_cutoff_custom_day" min="1" max="31" placeholder="1 - 31" />
+              <button type="button" id="toggleCalendarBtn" class="calendar-toggle-btn" title="Choose date from calendar">
+                📅 Calendar
+              </button>
+            </div>
+          </label>
+          <div id="calendarPopover" class="calendar-popover" role="dialog" aria-label="Day and Month Picker">
+            <div class="calendar-header">
+              <span>Month:</span>
+              <select id="calendarMonthSelect" aria-label="Select month">
+                <option value="1">January (31)</option>
+                <option value="2">February (28/29)</option>
+                <option value="3">March (31)</option>
+                <option value="4">April (30)</option>
+                <option value="5">May (31)</option>
+                <option value="6">June (30)</option>
+                <option value="7">July (31)</option>
+                <option value="8">August (31)</option>
+                <option value="9">September (30)</option>
+                <option value="10">October (31)</option>
+                <option value="11">November (30)</option>
+                <option value="12">December (31)</option>
+              </select>
+            </div>
+            <div class="calendar-grid" id="calendarDaysGrid"></div>
+          </div>
+        </div>
+        <label>
+          Monthly payment date mode
+          <select id="monthly_payment_day_mode">
+            <option value="same_as_cutoff" selected>Same as Cut-off Date</option>
+            <option value="last_working_day">Last working day</option>
+            <option value="custom_day">Use custom day</option>
+          </select>
+        </label>
       </div>
+
+      <h2 style="margin-top: 32px;">2. Attendance & Work Week Settings</h2>
+      <p>Configure organizational work week pattern, daily hours, and attendance submission frequency.</p>
+      <div class="setup-grid">
+        <label>
+          Work Week
+          <select id="work_week">
+            <option value="mon_fri">Mon thru Fri</option>
+            <option value="mon_sat" selected>Mon thru Sat</option>
+          </select>
+        </label>
+        <label>
+          Submission Frequency
+          <select id="attendance_submission_frequency">
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-Weekly</option>
+            <option value="monthly" selected>Monthly</option>
+          </select>
+        </label>
+        <label>
+          Daily Working Hours
+          <input type="number" id="daily_working_hours" min="1" max="24" value="9">
+        </label>
+      </div>
+
+      <h2 style="margin-top: 32px;">3. Leave Balance Configuration</h2>
+      <p>Configure leave quotas and carry forward policy per organization policy.</p>
+      <div class="setup-grid">
+        <label>
+          Earned Leaves Max
+          <input type="number" id="earned_leaves_max" min="0" value="15">
+        </label>
+        <label>
+          Earned Leaves Carry Forward Limit
+          <input type="number" id="earned_leaves_carry_forward_limit" min="0" value="30">
+        </label>
+        <label>
+          Casual Leaves Max (No CarryForward)
+          <input type="number" id="casual_leaves_max" min="0" value="12">
+        </label>
+        <label>
+          Sick Leaves Max (No CarryForward)
+          <input type="number" id="sick_leaves_max" min="0" value="10">
+        </label>
+        <label>
+          Maternity Leaves Max (No CarryForward)
+          <input type="number" id="maternity_leaves_max" min="0" value="180">
+        </label>
+        <label>
+          Paternity Leaves Max (No CarryForward)
+          <input type="number" id="paternity_leaves_max" min="0" value="15">
+        </label>
+        <label>
+          Adoption Leaves Max (No CarryForward)
+          <input type="number" id="adoption_leaves_max" min="0" value="60">
+        </label>
+      </div>
+
       <div class="actions">
         <button class="primary" id="saveSettings" type="button">Save setup</button>
         <button class="secondary" id="backToPayroll" type="button">To Payroll</button>
@@ -163,12 +361,103 @@
       return data;
     }
 
+    const monthDaysMap = {
+      1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30,
+      7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31
+    };
+
+    function renderCalendarDays() {
+      const monthSelect = document.getElementById('calendarMonthSelect');
+      const selectedMonth = parseInt(monthSelect.value, 10) || 1;
+      const maxDays = monthDaysMap[selectedMonth] || 31;
+      const grid = document.getElementById('calendarDaysGrid');
+      grid.innerHTML = '';
+      const currentVal = parseInt(document.getElementById('monthly_cutoff_custom_day').value, 10);
+
+      for (let day = 1; day <= 31; day++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'calendar-day-cell';
+        btn.textContent = day;
+        if (day > maxDays) {
+          btn.classList.add('disabled');
+          btn.disabled = true;
+        } else {
+          if (day === currentVal) {
+            btn.classList.add('selected');
+          }
+          btn.addEventListener('click', () => {
+            document.getElementById('monthly_cutoff_custom_day').value = day;
+            document.getElementById('calendarPopover').classList.remove('active');
+            renderCalendarDays();
+          });
+        }
+        grid.appendChild(btn);
+      }
+    }
+
+    function toggleCustomDayDisplay() {
+      const mode = document.getElementById('monthly_cutoff_day').value;
+      const wrapper = document.getElementById('custom_day_wrapper');
+      if (mode === 'custom_day') {
+        wrapper.style.display = 'block';
+      } else {
+        wrapper.style.display = 'none';
+        document.getElementById('calendarPopover').classList.remove('active');
+      }
+    }
+
+    document.getElementById('monthly_cutoff_day').addEventListener('change', toggleCustomDayDisplay);
+
+    document.getElementById('toggleCalendarBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const popover = document.getElementById('calendarPopover');
+      popover.classList.toggle('active');
+      if (popover.classList.contains('active')) {
+        renderCalendarDays();
+      }
+    });
+
+    document.getElementById('calendarMonthSelect').addEventListener('change', renderCalendarDays);
+
+    document.getElementById('monthly_cutoff_custom_day').addEventListener('input', () => {
+      let val = parseInt(document.getElementById('monthly_cutoff_custom_day').value, 10);
+      if (val > 31) document.getElementById('monthly_cutoff_custom_day').value = 31;
+      if (val < 1 && document.getElementById('monthly_cutoff_custom_day').value !== '') {
+        document.getElementById('monthly_cutoff_custom_day').value = 1;
+      }
+      renderCalendarDays();
+    });
+
+    document.addEventListener('click', (e) => {
+      const popover = document.getElementById('calendarPopover');
+      const toggleBtn = document.getElementById('toggleCalendarBtn');
+      if (popover && !popover.contains(e.target) && e.target !== toggleBtn) {
+        popover.classList.remove('active');
+      }
+    });
+
     async function loadSettings() {
       try {
         const result = await requestJson('/payroll/settings');
-        document.getElementById('weekly_cutoff_weekday').value = result.settings.weekly_cutoff_weekday || '3';
-        document.getElementById('bi_weekly_cutoff_weekday').value = result.settings.bi_weekly_cutoff_weekday || '3';
-        document.getElementById('monthly_cutoff_day').value = result.settings.monthly_cutoff_day || 'last_working_day';
+        const s = result.settings;
+        document.getElementById('weekly_cutoff_weekday').value = s.weekly_cutoff_weekday || '3';
+        document.getElementById('bi_weekly_cutoff_weekday').value = s.bi_weekly_cutoff_weekday || '3';
+        document.getElementById('monthly_cutoff_day').value = s.monthly_cutoff_day || 'last_working_day';
+        document.getElementById('monthly_cutoff_custom_day').value = s.monthly_cutoff_custom_day || '31';
+        document.getElementById('monthly_payment_day_mode').value = s.monthly_payment_day_mode || 'same_as_cutoff';
+        document.getElementById('work_week').value = s.work_week || 'mon_sat';
+        document.getElementById('attendance_submission_frequency').value = s.attendance_submission_frequency || 'monthly';
+        document.getElementById('daily_working_hours').value = s.daily_working_hours || '9';
+        document.getElementById('earned_leaves_max').value = s.earned_leaves_max || '15';
+        document.getElementById('earned_leaves_carry_forward_limit').value = s.earned_leaves_carry_forward_limit || '30';
+        document.getElementById('casual_leaves_max').value = s.casual_leaves_max || '12';
+        document.getElementById('sick_leaves_max').value = s.sick_leaves_max || '10';
+        document.getElementById('maternity_leaves_max').value = s.maternity_leaves_max || '180';
+        document.getElementById('paternity_leaves_max').value = s.paternity_leaves_max || '15';
+        document.getElementById('adoption_leaves_max').value = s.adoption_leaves_max || '60';
+        toggleCustomDayDisplay();
+        renderCalendarDays();
       } catch (error) {
         showStatus(error.message, 'error');
       }
@@ -182,15 +471,38 @@
 
     document.getElementById('saveSettings').addEventListener('click', async () => {
       try {
+        const mode = document.getElementById('monthly_cutoff_day').value;
+        let customDay = parseInt(document.getElementById('monthly_cutoff_custom_day').value, 10);
+        if (mode === 'custom_day') {
+          if (!customDay || isNaN(customDay) || customDay < 1 || customDay > 31) {
+            showStatus('Please enter or select a valid custom cutoff day between 1 and 31.', 'error');
+            return;
+          }
+        } else {
+          customDay = customDay || 31;
+        }
+
         await requestJson('/payroll/settings', {
           method: 'POST',
           body: JSON.stringify({
             weekly_cutoff_weekday: document.getElementById('weekly_cutoff_weekday').value,
             bi_weekly_cutoff_weekday: document.getElementById('bi_weekly_cutoff_weekday').value,
-            monthly_cutoff_day: document.getElementById('monthly_cutoff_day').value,
+            monthly_cutoff_day: mode,
+            monthly_cutoff_custom_day: customDay.toString(),
+            monthly_payment_day_mode: document.getElementById('monthly_payment_day_mode').value,
+            work_week: document.getElementById('work_week').value,
+            attendance_submission_frequency: document.getElementById('attendance_submission_frequency').value,
+            daily_working_hours: document.getElementById('daily_working_hours').value,
+            earned_leaves_max: document.getElementById('earned_leaves_max').value,
+            earned_leaves_carry_forward_limit: document.getElementById('earned_leaves_carry_forward_limit').value,
+            casual_leaves_max: document.getElementById('casual_leaves_max').value,
+            sick_leaves_max: document.getElementById('sick_leaves_max').value,
+            maternity_leaves_max: document.getElementById('maternity_leaves_max').value,
+            paternity_leaves_max: document.getElementById('paternity_leaves_max').value,
+            adoption_leaves_max: document.getElementById('adoption_leaves_max').value,
           })
         });
-        showStatus('Pay structure schedule saved.');
+        showStatus('Pay structure and organization setup saved.');
       } catch (error) {
         showStatus(error.message, 'error');
       }

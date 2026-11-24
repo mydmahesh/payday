@@ -156,7 +156,7 @@
   <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
     <div style="flex: 1; min-width: 220px;">
       <label for="searchEmpId">Employee ID</label>
-      <input type="number" id="searchEmpId" placeholder="e.g. 1001">
+      <input type="text" id="searchEmpId" placeholder="e.g. M77850 or 77850">
     </div>
     <div style="flex: 1; min-width: 220px; align-self: flex-end;">
       <button id="doSearchBtn" style="padding:14px 40px;">Search</button>
@@ -170,11 +170,12 @@
       <tr>
         <th>Emp ID</th>
         <th>Name</th>
-        <th>Pay Term</th>
-        <th>Monthly Salary</th>
-        <th>Job ID</th>
+        <th>Grade</th>
         <th>Pay Group</th>
-        <th>Employment Type</th>
+        <th>Pay Term</th>
+        <th>Salary</th>
+        <th>Job ID</th>
+        <th>Attendance Required?</th>
         <th>Active</th>
         <th>Action</th>
       </tr>
@@ -193,23 +194,41 @@
 
     <div class="form-group">
       <label for="empid">Employee ID *</label>
-      <input type="number" id="empid" required placeholder="Enter Employee ID">
+      <input type="text" id="empid" required placeholder="Enter Employee ID (e.g. M77850, 77850)">
     </div>
 
     <div class="form-group">
-      <label>Name</label>
+      <label for="name">Name</label>
       <input type="text" id="name" readonly placeholder="Will auto-fill">
+    </div>
+
+    <div class="form-group">
+      <label for="grade">Grade *</label>
+      <select id="grade" required>
+        <option value="">Select Grade</option>
+        <option value="A">Grade A – Management (Senior Management)</option>
+        <option value="B">Grade B – Regular (Regular Employee)</option>
+        <option value="C">Grade C – Contract (Contract Employee)</option>
+        <option value="D">Grade D – Staff (Support Office Staff)</option>
+        <option value="E">Grade E – Supplier (Suppliers)</option>
+        <option value="F">Grade F – Other (Others)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="pay_group">Pay Group</label>
+      <input type="text" id="pay_group" readonly placeholder="Auto-set by Grade">
+    </div>
+
+    <div class="form-group">
+      <label for="attendance_required">Attendance Required?</label>
+      <input type="text" id="attendance_required" readonly placeholder="Auto-set by Grade">
     </div>
 
     <div class="form-group">
       <label for="pay_term">Pay Term *</label>
       <select id="pay_term" required>
-        <option value="">Select term</option>
-        <option value="One-time">One-time</option>
-        <option value="monthly" selected="selected">Monthly</option>
-        <option value="bi-weekly">Bi-weekly</option>
-        <option value="weekly">Weekly</option>
-        <option value="daily">Daily</option>
+        <option value="">Select Grade first</option>
       </select>
     </div>
 
@@ -220,19 +239,7 @@
 
     <div class="form-group">
       <label for="job_id">Job ID</label>
-      <input type="text" id="job_id" placeholder="e.g. DEV-001, MGR-05">
-    </div>
-
-    <div class="form-group">
-      <label for="pay_group">Pay Group</label>
-      <select id="pay_group">
-        <option value="">Select group</option>
-        <option value="A">A – Senior Management</option>
-        <option value="B">B – Management</option>
-        <option value="C">C – Regular</option>
-        <option value="D">D – Contract / Trainee</option>
-        <option value="E">E – Support Staff</option>
-      </select>
+      <input type="text" id="job_id" placeholder="e.g. DEV-001, MGR-05 (based on role)">
     </div>
 
     <div class="form-group">
@@ -387,11 +394,12 @@ document.getElementById('doSearchBtn').onclick = async () => {
       tr.innerHTML = `
         <td>${item.empid}</td>
         <td>${item.name || '-'}</td>
+        <td><strong>${item.grade || '-'}</strong></td>
+        <td>${item.pay_group || '-'}</td>
         <td>${item.pay_term || '-'}</td>
         <td>${item.salary ? '₹' + Number(item.salary).toLocaleString('en-IN') : '-'}</td>
         <td>${item.job_id || '-'}</td>
-        <td>${item.pay_group || '-'}</td>
-        <td>${item.employment_type || 'Unclassified'}</td>
+        <td>${item.attendance_required || 'Yes'}</td>
         <td style="text-align: center;">
           <input type="radio" name="active-${item.empid}" data-record-id="${item.id}" ${item.active ? 'checked' : ''} />
         </td>
@@ -422,6 +430,88 @@ document.getElementById('doSearchBtn').onclick = async () => {
 };
 
 // --------------------------------------------------
+//   Grade Configurations (Section 2.1 & 2.2)
+// --------------------------------------------------
+const GRADE_CONFIG = {
+  'A': { payGroup: 'Management', attendance: 'Yes', terms: ['Monthly'], fixedTerm: true, jobIdReq: true },
+  'B': { payGroup: 'Regular', attendance: 'Yes', terms: ['Monthly'], fixedTerm: true, jobIdReq: true },
+  'C': { payGroup: 'Contract', attendance: 'Yes', terms: ['Weekly', 'Bi-Weekly', 'Monthly'], fixedTerm: false, jobIdReq: true },
+  'D': { payGroup: 'Staff', attendance: 'Yes', terms: ['Weekly', 'Bi-Weekly', 'Monthly'], fixedTerm: false, jobIdReq: true },
+  'E': { payGroup: 'Supplier', attendance: 'No', terms: ['Weekly', 'Bi-Weekly', 'Monthly', 'One-time'], fixedTerm: false, jobIdReq: false },
+  'F': { payGroup: 'Other', attendance: 'No', terms: ['Weekly', 'Bi-Weekly', 'Monthly', 'One-time'], fixedTerm: false, jobIdReq: false }
+};
+
+function updateFormForGrade(grade, selectedTerm = null) {
+  const cfg = GRADE_CONFIG[grade];
+  const payGroupInput = document.getElementById('pay_group');
+  const attendanceInput = document.getElementById('attendance_required');
+  const payTermSelect = document.getElementById('pay_term');
+  const jobIdInput = document.getElementById('job_id');
+
+  if (!cfg) {
+    payGroupInput.value = '';
+    attendanceInput.value = '';
+    payTermSelect.innerHTML = '<option value="">Select Grade first</option>';
+    jobIdInput.disabled = false;
+    jobIdInput.placeholder = 'e.g. DEV-001, MGR-05';
+    return;
+  }
+
+  payGroupInput.value = cfg.payGroup;
+  attendanceInput.value = cfg.attendance;
+
+  payTermSelect.innerHTML = '';
+  cfg.terms.forEach(term => {
+    const opt = document.createElement('option');
+    opt.value = term;
+    opt.textContent = term + (cfg.fixedTerm ? ' (Default and no change)' : '');
+    payTermSelect.appendChild(opt);
+  });
+  if (selectedTerm && cfg.terms.includes(selectedTerm)) {
+    payTermSelect.value = selectedTerm;
+  } else {
+    payTermSelect.value = cfg.terms[0];
+  }
+
+  if (cfg.jobIdReq) {
+    jobIdInput.disabled = false;
+    jobIdInput.placeholder = 'e.g. DEV-001, MGR-05 (based on role)';
+  } else {
+    jobIdInput.disabled = true;
+    jobIdInput.value = '';
+    jobIdInput.placeholder = 'Not applicable for Grade ' + grade;
+  }
+}
+
+document.getElementById('grade').addEventListener('change', (e) => {
+  updateFormForGrade(e.target.value);
+  regenerateEmpIdForGrade(e.target.value);
+});
+
+function regenerateEmpIdForGrade(grade) {
+  const empidInput = document.getElementById('empid');
+  const currentEmpId = empidInput.value.trim();
+  if (!currentEmpId) return;
+
+  // Extract numeric part from current empid
+  const digits = currentEmpId.replace(/[^0-9]/g, '');
+  if (!digits) return;
+
+  const numericId = parseInt(digits, 10);
+  if (isNaN(numericId)) return;
+
+  // Regenerate empid with new grade (mirrors backend format_empid logic)
+  const GRADE_PREFIX = { 'A': 'M', 'B': 'E', 'C': 'C', 'D': 'S', 'E': '', 'F': '' };
+  const GRADE_SUFFIX = { 'A': '', 'B': '', 'C': '', 'D': '', 'E': 'S', 'F': 'F' };
+
+  const prefix = GRADE_PREFIX[grade] || 'E';
+  const suffix = GRADE_SUFFIX[grade] || '';
+  const newEmpId = `${prefix}${numericId.toString().padStart(5, '0')}${suffix}`;
+
+  empidInput.value = newEmpId;
+}
+
+// --------------------------------------------------
 //   Set active pay structure record
 // --------------------------------------------------
 async function setActiveRecord(recordId, empid) {
@@ -431,14 +521,13 @@ async function setActiveRecord(recordId, empid) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         id: recordId,
-        empid,
+        empid: empid,
         active: true
       })
     });
 
     const res = await resp.json();
     if (res.status === 'success') {
-      // Update UI radios so only the selected record is active for this employee
       document.querySelectorAll(`input[name="active-${empid}"]`).forEach(r => {
         r.checked = r.dataset.recordId === recordId;
       });
@@ -452,19 +541,24 @@ async function setActiveRecord(recordId, empid) {
 }
 
 // --------------------------------------------------
-//   Auto-fill name when empid changes
+//   Auto-fill name & grade when empid changes
 // --------------------------------------------------
 document.getElementById('empid').onblur = async () => {
   const empid = document.getElementById('empid').value.trim();
   if (!empid) return;
 
   try {
-    const r = await fetch(`/employee/${empid}`);
+    const r = await fetch(`/employee/${encodeURIComponent(empid)}`);
     const data = await r.json();
     if (data.status === 'success' && data.employee) {
+      const emp = data.employee;
       document.getElementById('name').value = 
-        `${data.employee.first_name || ''} ${data.employee.last_name || ''}`.trim();
-      showToast("Employee found", 'success');
+        `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+      if (emp.grade && GRADE_CONFIG[emp.grade.toUpperCase()]) {
+        document.getElementById('grade').value = emp.grade.toUpperCase();
+        updateFormForGrade(emp.grade.toUpperCase());
+      }
+      showToast("Employee found: " + emp.empid, 'success');
     } else {
       showToast(data.message || "Employee not found", 'error');
     }
@@ -480,12 +574,13 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
   e.preventDefault();
 
   const payload = {
-    empid:       parseInt(document.getElementById('empid').value),
-    name:        document.getElementById('name').value,
+    empid:       document.getElementById('empid').value.trim(),
+    name:        document.getElementById('name').value.trim(),
+    grade:       document.getElementById('grade').value,
+    pay_group:   document.getElementById('pay_group').value,
     pay_term:    document.getElementById('pay_term').value,
     salary:      parseFloat(document.getElementById('salary').value) || 0,
     job_id:      document.getElementById('job_id').value.trim() || null,
-    pay_group:   document.getElementById('pay_group').value || null,
     active:      document.getElementById('active').checked,
     notes:       document.getElementById('notes')?.value.trim() || null
   };
@@ -507,6 +602,7 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
     if (res.status === 'success') {
       showToast(res.message || 'Pay structure saved successfully', 'success');
       document.getElementById('payStructureForm').reset();
+      updateFormForGrade('');
     } else {
       showMsg('formMessage', res.message || 'Save failed', 'error');
     }

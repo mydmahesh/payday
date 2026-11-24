@@ -96,7 +96,7 @@
 
     <div class="form-group">
       <label for="empid">Employee ID *</label>
-      <input type="number" id="empid" required readonly placeholder="Employee ID">
+      <input type="text" id="empid" required placeholder="Employee ID">
     </div>
 
     <div class="form-group">
@@ -105,24 +105,31 @@
     </div>
 
     <div class="form-group">
-      <label for="employment_type">Employment Type *</label>
-      <select id="employment_type" required>
-        <option value="">Select employment type</option>
-        <option value="permanent">Permanent</option>
-        <option value="contractor">Contractor</option>
-        <option value="contingent">Contingent</option>
+      <label for="grade">Grade *</label>
+      <select id="grade" required>
+        <option value="A">Grade A – Management (Senior Management)</option>
+        <option value="B">Grade B – Regular (Regular Employee)</option>
+        <option value="C">Grade C – Contract (Contract Employee)</option>
+        <option value="D">Grade D – Staff (Support Office Staff)</option>
+        <option value="E">Grade E – Supplier (Suppliers)</option>
+        <option value="F">Grade F – Other (Others)</option>
       </select>
+    </div>
+
+    <div class="form-group">
+      <label for="pay_group">Pay Group</label>
+      <input type="text" id="pay_group" readonly placeholder="Auto-set by Grade">
+    </div>
+
+    <div class="form-group">
+      <label for="attendance_required">Attendance Required?</label>
+      <input type="text" id="attendance_required" readonly placeholder="Auto-set by Grade">
     </div>
 
     <div class="form-group">
       <label for="pay_term">Pay Term *</label>
       <select id="pay_term" required>
         <option value="">Select term</option>
-        <option value="One-time">One-time</option>
-        <option value="monthly">Monthly</option>
-        <option value="bi-weekly">Bi-weekly</option>
-        <option value="weekly">Weekly</option>
-        <option value="daily">Daily</option>
       </select>
     </div>
 
@@ -133,18 +140,17 @@
 
     <div class="form-group">
       <label for="job_id">Job ID</label>
-      <input type="text" id="job_id" placeholder="e.g. DEV-001, MGR-05">
+      <input type="text" id="job_id" placeholder="e.g. DEV-001, MGR-05 (based on role)">
     </div>
 
-    <div class="form-group">
-      <label for="pay_group">Pay Group</label>
-      <select id="pay_group">
-        <option value="">Select group</option>
-        <option value="A">A – Senior Management</option>
-        <option value="B">B – Management</option>
-        <option value="C">C – Regular</option>
-        <option value="D">D – Contract / Trainee</option>
-        <option value="E">E – Support Staff</option>
+    <div class="form-group" style="display:none;">
+      <label for="employment_type">Employment Type</label>
+      <select id="employment_type">
+        <option value="permanent">Permanent</option>
+        <option value="contractor">Contractor</option>
+        <option value="contingent">Contingent</option>
+        <option value="supplier">Supplier</option>
+        <option value="other">Other</option>
       </select>
     </div>
 
@@ -194,6 +200,86 @@ function showMsg(elId, text, type = 'success') {
   setTimeout(() => el.style.display = 'none', 6000);
 }
 
+const GRADE_CONFIG = {
+  'A': { payGroup: 'Management', attendance: 'Yes', terms: ['Monthly'], fixedTerm: true, jobIdReq: true },
+  'B': { payGroup: 'Regular', attendance: 'Yes', terms: ['Monthly'], fixedTerm: true, jobIdReq: true },
+  'C': { payGroup: 'Contract', attendance: 'Yes', terms: ['Weekly', 'Bi-Weekly', 'Monthly'], fixedTerm: false, jobIdReq: true },
+  'D': { payGroup: 'Staff', attendance: 'Yes', terms: ['Weekly', 'Bi-Weekly', 'Monthly'], fixedTerm: false, jobIdReq: true },
+  'E': { payGroup: 'Supplier', attendance: 'No', terms: ['Weekly', 'Bi-Weekly', 'Monthly', 'One-time'], fixedTerm: false, jobIdReq: false },
+  'F': { payGroup: 'Other', attendance: 'No', terms: ['Weekly', 'Bi-Weekly', 'Monthly', 'One-time'], fixedTerm: false, jobIdReq: false }
+};
+
+function updateFormForGrade(grade, selectedTerm = null) {
+  const cfg = GRADE_CONFIG[grade];
+  const payGroupInput = document.getElementById('pay_group');
+  const attendanceInput = document.getElementById('attendance_required');
+  const payTermSelect = document.getElementById('pay_term');
+  const jobIdInput = document.getElementById('job_id');
+
+  if (!cfg) {
+    payGroupInput.value = '';
+    attendanceInput.value = '';
+    payTermSelect.innerHTML = '<option value="">Select Grade first</option>';
+    jobIdInput.disabled = false;
+    jobIdInput.placeholder = 'e.g. DEV-001, MGR-05';
+    return;
+  }
+
+  payGroupInput.value = cfg.payGroup;
+  attendanceInput.value = cfg.attendance;
+
+  payTermSelect.innerHTML = '';
+  cfg.terms.forEach(term => {
+    const opt = document.createElement('option');
+    opt.value = term;
+    opt.textContent = term + (cfg.fixedTerm ? ' (Default and no change)' : '');
+    payTermSelect.appendChild(opt);
+  });
+  if (selectedTerm && cfg.terms.some(t => t.toLowerCase() === selectedTerm.toLowerCase())) {
+    const matched = cfg.terms.find(t => t.toLowerCase() === selectedTerm.toLowerCase());
+    payTermSelect.value = matched;
+  } else {
+    payTermSelect.value = cfg.terms[0];
+  }
+
+  if (cfg.jobIdReq) {
+    jobIdInput.disabled = false;
+    jobIdInput.placeholder = 'e.g. DEV-001, MGR-05 (based on role)';
+  } else {
+    jobIdInput.disabled = true;
+    jobIdInput.value = '';
+    jobIdInput.placeholder = 'Not applicable for Grade ' + grade;
+  }
+}
+
+document.getElementById('grade').addEventListener('change', (e) => {
+  updateFormForGrade(e.target.value);
+  regenerateEmpIdForGrade(e.target.value);
+});
+
+function regenerateEmpIdForGrade(grade) {
+  const empidInput = document.getElementById('empid');
+  const currentEmpId = empidInput.value.trim();
+  if (!currentEmpId) return;
+
+  // Extract numeric part from current empid
+  const digits = currentEmpId.replace(/[^0-9]/g, '');
+  if (!digits) return;
+
+  const numericId = parseInt(digits, 10);
+  if (isNaN(numericId)) return;
+
+  // Regenerate empid with new grade (mirrors backend format_empid logic)
+  const GRADE_PREFIX = { 'A': 'M', 'B': 'E', 'C': 'C', 'D': 'S', 'E': '', 'F': '' };
+  const GRADE_SUFFIX = { 'A': '', 'B': '', 'C': '', 'D': '', 'E': 'S', 'F': 'F' };
+
+  const prefix = GRADE_PREFIX[grade] || 'E';
+  const suffix = GRADE_SUFFIX[grade] || '';
+  const newEmpId = `${prefix}${numericId.toString().padStart(5, '0')}${suffix}`;
+
+  empidInput.value = newEmpId;
+}
+
 // --------------------------------------------------
 //   Load data on page load
 // --------------------------------------------------
@@ -225,13 +311,14 @@ window.onload = async () => {
       document.getElementById('record_id').value = record.id || '';
       document.getElementById('empid').value = record.empid;
       document.getElementById('name').value = record.name || '';
-      document.getElementById('employment_type').value = record.employment_type || '';
-      document.getElementById('pay_term').value = record.pay_term || '';
       document.getElementById('salary').value = record.salary || '';
       document.getElementById('job_id').value = record.job_id || '';
-      document.getElementById('pay_group').value = record.pay_group || '';
       document.getElementById('active').checked = !!record.active;
       document.getElementById('notes').value = record.notes || '';
+
+      const g = (record.grade || 'B').toUpperCase();
+      document.getElementById('grade').value = g;
+      updateFormForGrade(g, record.pay_term);
 
       showToast('Loaded pay structure for editing', 'success');
     } else {
@@ -250,18 +337,18 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
 
   const payload = {
     id:          document.getElementById('record_id').value || null,
-    empid:       parseInt(document.getElementById('empid').value),
-    name:        document.getElementById('name').value,
-    employment_type: document.getElementById('employment_type').value,
+    empid:       document.getElementById('empid').value.trim(),
+    name:        document.getElementById('name').value.trim(),
+    grade:       document.getElementById('grade').value,
+    pay_group:   document.getElementById('pay_group').value,
     pay_term:    document.getElementById('pay_term').value,
     salary:      parseFloat(document.getElementById('salary').value) || 0,
     job_id:      document.getElementById('job_id').value.trim() || null,
-    pay_group:   document.getElementById('pay_group').value || null,
     active:      document.getElementById('active').checked,
     notes:       document.getElementById('notes')?.value.trim() || null
   };
 
-  if (!payload.id || !payload.empid || !payload.employment_type || !payload.pay_term || payload.salary <= 0) {
+  if (!payload.id || !payload.empid || !payload.pay_term || payload.salary <= 0) {
     showMsg('formMessage', 'Please fill all required fields with valid data', 'error');
     return;
   }
@@ -276,7 +363,17 @@ document.getElementById('payStructureForm').onsubmit = async (e) => {
     const res = await resp.json();
 
     if (res.status === 'success') {
-      showToast( res.message || 'Pay structure updated successfully', 'success');
+      showToast(res.message || 'Pay structure updated successfully', 'success');
+      setTimeout(() => {
+        window.location.href = '/pay_structure';
+      }, 1200);
+    } else {
+      showMsg('formMessage', res.message || 'Save failed', 'error');
+    }
+  } catch (err) {
+    showMsg('formMessage', 'Network / server error', 'error');
+  }
+};
     // Optionally redirect back after a delay
     //   setTimeout(() => window.location.href = '/pay_structure', 2000);
     } else {

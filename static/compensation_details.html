@@ -145,7 +145,7 @@
     <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
       <div class="form-group" style="flex: 1; min-width: 250px;">
         <label for="searchEmpId">Employee ID (leave blank for all)</label>
-        <input type="number" id="searchEmpId" placeholder="Enter Emp ID">
+        <input type="text" id="searchEmpId" placeholder="Enter Emp ID">
       </div>
       <button id="searchBtn">Search</button>
     </div>
@@ -178,7 +178,7 @@
       <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
         <div class="form-group" style="flex: 1; min-width: 180px;">
           <label for="empid">Employee ID *</label>
-          <input type="number" id="empid" required placeholder="Enter ID">
+          <input type="text" id="empid" required placeholder="Enter ID">
         </div>
         <div class="form-group" style="flex: 1; min-width: 180px;">
           <label>Name</label>
@@ -330,6 +330,25 @@
               <td style="text-align: right;" id="gratuity_annual_display">0.00</td>
             </tr>
 
+            <!-- Additional Monthly Components -->
+            <tr style="background: #f8f9fa;">
+              <td colspan="3" style="font-weight: bold; padding: 10px;">5) Additional Monthly Components</td>
+            </tr>
+            <tr>
+              <td>Overtime Pay</td>
+              <td style="text-align: right;">
+                <input type="number" id="overtime_pay" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="overtime_pay_annual_display">0.00</td>
+            </tr>
+            <tr>
+              <td>Transport Allowance</td>
+              <td style="text-align: right;">
+                <input type="number" id="transport_allowance" step="0.01" min="0" style="width: 100%; text-align: right;">
+              </td>
+              <td style="text-align: right;" id="transport_allowance_annual_display">0.00</td>
+            </tr>
+
             <!-- Total Gross -->
             <tr class="total-row" style="font-weight: bold; background: #e8f4f8;">
               <td>TOTAL GROSS</td>
@@ -385,7 +404,7 @@
   // Auto-populate employee details when empid loses focus
   document.getElementById('empid').addEventListener('blur', async () => {
     const empid = document.getElementById('empid').value.trim();
-    if (!empid || isNaN(empid)) return;
+    if (!empid) return;
 
     try {
       const response = await fetch(`/compensation/employee/${empid}`);
@@ -441,7 +460,9 @@
       personal_allowance: 'personal_allowance_annual_display',
       health_insurance: 'health_insurance_annual_display',
       provident_fund: 'provident_fund_annual_display',
-      gratuity: 'gratuity_annual_display'
+      gratuity: 'gratuity_annual_display',
+      overtime_pay: 'overtime_pay_annual_display',
+      transport_allowance: 'transport_allowance_annual_display'
     };
 
     Object.keys(monthlyToAnnual).forEach(monthlyId => {
@@ -572,6 +593,8 @@ document.addEventListener('click', async (e) => {
         if (document.getElementById('health_insurance')) document.getElementById('health_insurance').value = rec.health_insurance || '';
         if (document.getElementById('provident_fund')) document.getElementById('provident_fund').value = rec.provident_fund || '';
         if (document.getElementById('gratuity')) document.getElementById('gratuity').value = rec.gratuity || '';
+        if (document.getElementById('overtime_pay')) document.getElementById('overtime_pay').value = rec.overtime_pay || '';
+        if (document.getElementById('transport_allowance')) document.getElementById('transport_allowance').value = rec.transport_allowance || '';
 
         // Trigger calculations so Annual values appear immediately
         updateAllCalculations();
@@ -592,7 +615,7 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
 
     const data = {
-      empid: parseInt(document.getElementById('empid').value),
+      empid: document.getElementById('empid').value.trim(),
       name: document.getElementById('name').value.trim(),
       email: document.getElementById('email').value.trim(),
       hire_date: document.getElementById('hire_date').value || null,
@@ -612,6 +635,8 @@ document.addEventListener('click', async (e) => {
       health_insurance: parseFloat(document.getElementById('health_insurance').value) || 0,
       provident_fund: parseFloat(document.getElementById('provident_fund').value) || 0,
       gratuity: parseFloat(document.getElementById('gratuity').value) || 0,
+      overtime_pay: parseFloat(document.getElementById('overtime_pay').value) || 0,
+      transport_allowance: parseFloat(document.getElementById('transport_allowance').value) || 0,
 
       currency: 'INR',
       pay_period: 'Monthly'

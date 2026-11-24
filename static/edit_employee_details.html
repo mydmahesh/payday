@@ -105,14 +105,12 @@
 	<label for="grade">Grade *</label>
 	<select id="grade" required>
     <option value="">Select Grade</option>
-    <option value="E1">E1</option>
-    <option value="E2">E2</option>
-    <option value="L1">L1</option>
-    <option value="L2">L2</option>
-    <option value="M1">M1</option>
-    <option value="M2">M2</option>
-    <option value="VP">VP</option>
-    <option value="CEO">CEO</option>
+    <option value="A">Grade A – Management (Senior Management)</option>
+    <option value="B">Grade B – Regular (Regular Employee)</option>
+    <option value="C">Grade C – Contract (Contract Employee)</option>
+    <option value="D">Grade D – Staff (Support Office Staff)</option>
+    <option value="E">Grade E – Supplier (Suppliers)</option>
+    <option value="F">Grade F – Other (Others)</option>
 	</select>
 	</div>
 
@@ -162,7 +160,7 @@
 }
     // Get employee ID from URL
     const urlParams = new URLSearchParams(window.location.search);
-    const empid = urlParams.get('id');
+    const empid = urlParams.get('empid') || urlParams.get('id');
 
     if (!empid) {
       document.getElementById('message').textContent = 'No employee ID provided';
@@ -216,6 +214,10 @@
 
         const result = await response.json();
         const msg = document.getElementById('message');
+        if (result.status === 'success' && result.empid) {
+          document.getElementById('empid').value = result.empid;
+          window.history.replaceState({}, '', '?id=' + encodeURIComponent(result.empid));
+        }
 		showToast(result.message, result.status === 'success' ? 'success' : 'error');
       } catch (err) {
         document.getElementById('message').textContent = 'Failed to update';

@@ -112,7 +112,7 @@
 
     <div class="form-group">
       <label for="empid">Employee ID</label>
-      <input type="number" id="empid" readonly>
+      <input type="text" id="empid" readonly>
     </div>
 
     <div class="form-group">
@@ -218,7 +218,7 @@ document.getElementById('bankForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = {
     record_id:      document.getElementById('record_id').value,
-    empid:          parseInt(document.getElementById('empid').value),
+    empid:          document.getElementById('empid').value.trim(),
     bank_name:      document.getElementById('bank_name').value.trim(),
     account_number: document.getElementById('account_number').value.trim(),
     ifsc_code:      document.getElementById('ifsc_code').value.trim(),

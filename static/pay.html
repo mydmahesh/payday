@@ -323,14 +323,20 @@
 
     function calculatePayAmount(salary, payTerm) {
       const sal = parseFloat(salary) || 0;
-      switch (payTerm) {
-        case 'One-time':
+      switch (payTerm?.toLowerCase()) {
+        case 'one-time':
+        case 'one_time':
           return sal;
         case 'daily':
-          return sal; // Assuming daily pay is the amount
+          // Daily pay: assume 26 working days per month, daily rate = monthly / 26
+          // But here salary IS the daily rate, so return as-is
+          return sal;
         case 'weekly':
+          // Weekly pay: salary is weekly amount
           return sal;
         case 'bi-weekly':
+        case 'bi_weekly':
+          // Bi-weekly pay: salary is bi-weekly amount
           return sal;
         case 'monthly':
           return sal;
@@ -351,7 +357,7 @@
       }
     }
 
-    // Pay selected button handler
+    // Pay selected button handler - creates payroll run and records payments
     document.getElementById('paySelectedBtn').addEventListener('click', async () => {
       const selectedIndices = Array.from(document.querySelectorAll('.pay-checkbox:checked'))
         .map(checkbox => parseInt(checkbox.dataset.index));
@@ -362,59 +368,62 @@
       }
 
       const selectedRecords = selectedIndices.map(index => allStructures[index]);
-      const paymentRequests = selectedRecords.map(record => ({
-        empid: parseInt(record.empid),
-        pay_term: record.pay_term,
-        amount: parseFloat(record.salary) || 0,
-        monthly_salary: parseFloat(record.salary) || 0,
-        name: record.name,
-        hire_date: record.hire_date,
-        pay_group: record.pay_group,
-        payment_handling_code: 'AUTO',
-        payment_status: 'completed',
-        recon_status: 'pending',
-        payment_ref: `PAY-${Date.now()}-${record.empid}`
-      }));
 
       try {
-        let successCount = 0;
-        let failCount = 0;
+        // Step 1: Create payroll run with cutoff date = today
+        const today = new Date().toISOString().split('T')[0];
+        const runResponse = await fetch('/payroll/runs', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({cutoff_date: today})
+        });
+        const runResult = await runResponse.json();
 
-        // Process payments sequentially
-        for (const payload of paymentRequests) {
-          try {
-            const resp = await fetch('/process_pay', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify(payload)
-            });
-            const result = await resp.json();
-
-            if (result.status === 'success') {
-              successCount++;
-            } else {
-              failCount++;
-            }
-          } catch (err) {
-            failCount++;
-          }
+        if (runResult.status !== 'success') {
+          showToast(runResult.message || 'Failed to create payroll run', 'error');
+          return;
         }
 
-        if (successCount > 0) {
-          showToast(`${successCount} payment(s) processed successfully${failCount > 0 ? `, ${failCount} failed` : ''}`, successCount === paymentRequests.length ? 'success' : 'error');
+        const runId = runResult.run.run_id;
+        showToast(`Payroll run created (ID: ${runId}), approving...`, 'success');
+
+        // Step 2: Approve the payroll run
+        const approveResponse = await fetch(`/payroll/runs/${runId}/approve`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        const approveResult = await approveResponse.json();
+
+        if (approveResult.status !== 'success') {
+          showToast(approveResult.message || 'Failed to approve payroll run', 'error');
+          return;
+        }
+
+        showToast('Payroll run approved, recording payments...', 'success');
+
+        // Step 3: Record payments for the run
+        const payResponse = await fetch(`/payroll/runs/${runId}/record-payments`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        const payResult = await payResponse.json();
+
+        if (payResult.status === 'success') {
+          showToast(`${payResult.recorded_count} payment(s) recorded successfully`, 'success');
           // Clear checkboxes
           document.querySelectorAll('.pay-checkbox').forEach(checkbox => checkbox.checked = false);
           document.getElementById('selectAllCheckbox').checked = false;
           updatePaySelectedButton();
-          // Reload dues to remove paid ones
+          // Reload dues
           document.getElementById('loadBtn').click();
           // Reload payments
           loadPayments();
         } else {
-          showToast('Payment processing failed', 'error');
+          showToast(payResult.message || 'Failed to record payments', 'error');
         }
       } catch (err) {
         showToast('Network error processing payments', 'error');
+        console.error(err);
       }
     });
   </script>

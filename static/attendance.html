@@ -50,6 +50,7 @@
     button.calendar-day.workday:hover { background: var(--success-green-hover) !important; }
     button.calendar-day.default-holiday:hover,
     button.calendar-day.custom-holiday:hover { background: var(--primary-blue-hover) !important; }
+    .calendar-day.selected { box-shadow: inset 0 0 0 3px #2980b9; border: 2px solid #2980b9; }
     .calendar-day-label { font-size: .75rem; line-height: 1.2; }
     .calendar-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; color: #536171; font-size: .9rem; }
     .calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -82,7 +83,8 @@
 
     <div class="buttons attendance-modes" role="group" aria-label="Attendance actions">
       <button type="button" id="searchModeButton" aria-pressed="false">Search Attendance</button>
-      <button type="button" id="markModeButton" class="btn-success" aria-pressed="false">Mark Attendance</button>
+      <button type="button" id="markModeButton" class="btn-success" aria-pressed="false">Mark Attendance (Frequency Period)</button>
+      <button type="button" id="approvalsModeButton" aria-pressed="false">Attendance Approvals</button>
     </div>
     <div class="calendar-link-row">
       <a href="#calendarPanel" id="workCalendarLink" aria-controls="calendarPanel" aria-expanded="false">Work Calendar</a>
@@ -92,7 +94,7 @@
     <section id="searchPanel" class="attendance-section attendance-panel attendance-details" aria-labelledby="searchHeading" hidden>
       <h2 id="searchHeading">Search Attendance</h2>
       <form id="attendanceSearch" class="filter-form">
-        <label for="searchEmpId">Employee ID<input type="number" id="searchEmpId" min="1" placeholder="Any employee"></label>
+        <label for="searchEmpId">Employee ID<input type="text" id="searchEmpId" placeholder="Any employee"></label>
         <label for="searchDate">Date<input type="date" id="searchDate"></label>
         <label for="searchStatus">Status
           <select id="searchStatus">
@@ -116,24 +118,97 @@
     </section>
 
     <section id="markPanel" class="attendance-section attendance-panel attendance-details" aria-labelledby="markHeading" hidden>
-      <h2 id="markHeading">Mark Attendance</h2>
-      <p>Only active employees with an active pay structure are available. Choose the employee and work date.</p>
-      <form id="attendanceForm" class="attendance-form">
-        <label for="employeeSelect">Employee<select id="employeeSelect" required></select></label>
-        <label for="workDate">Work date<input type="date" id="workDate" required></label>
-        <label for="attendanceStatus">Status
-          <select id="attendanceStatus" required>
-            <option value="present">Present</option>
-            <option value="absent">Absent</option>
-            <option value="leave">Leave</option>
-          </select>
+      <h2 id="markHeading">Mark Attendance (Submission Frequency Period)</h2>
+      <p>Attendance is displayed according to the Submission Frequency set by admin. Employees submit attendance for Senior Manager approval; managers can submit on an employee's behalf (auto-approved).</p>
+
+      <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 20px;">
+        <label for="employeeSelect" style="flex: 2; min-width: 250px; font-weight: 600;">Employee
+          <select id="employeeSelect" required style="width: 100%; min-height: 42px;"></select>
         </label>
-        <label for="attendanceNotes">Notes<input type="text" id="attendanceNotes" maxlength="250"></label>
-        <button type="submit" id="saveAttendance">Submit attendance</button>
-      </form>
-      <div id="afterSaveActions" class="save-actions" hidden>
-        <button type="button" id="reviewSavedAttendance">Review saved attendance</button>
-        <button type="button" id="markAnother">Mark another</button>
+        <div style="flex: 1; min-width: 300px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px;">Select Date in Period</label>
+          <div id="markCalendarToolbar" class="calendar-toolbar" style="margin: 0 0 12px;">
+            <button type="button" id="markPrevMonth" aria-label="Previous month" style="padding: 6px 12px;">Previous</button>
+            <h3 id="markCalendarMonth" style="margin: 0; font-size: 1.1rem;"></h3>
+            <button type="button" id="markNextMonth" aria-label="Next month" style="padding: 6px 12px;">Next</button>
+          </div>
+          <div id="markCalendarGrid" class="calendar-grid" role="grid" aria-label="Attendance marking calendar" style="min-height: 300px;"></div>
+          <div class="calendar-legend" aria-label="Calendar legend" style="margin-top: 10px;">
+            <span><i class="legend-mark legend-working"></i>Working day (click to mark)</span>
+            <span><i class="legend-mark legend-holiday"></i>Holiday / Non-working</span>
+            <span><i class="legend-mark legend-sunday"></i>Sunday</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px;"><i style="width: 12px; height: 12px; border-radius: 2px; border: 2px solid #2980b9; background: transparent; display: inline-block;"></i>Selected date</span>
+          </div>
+          <input type="hidden" id="periodTargetDate">
+          <button type="button" id="loadPeriodBtn" class="btn-primary" style="margin-top: 12px; min-height: 42px; width: 100%;">Load Period for Selected Date</button>
+        </div>
+      </div>
+
+      <div id="periodCard" style="display:none; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:18px; margin-bottom:20px;">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <h3 id="periodTitle" style="margin:0 0 6px 0; color:#163b5b;">Attendance Period</h3>
+            <span id="periodDates" style="color:#536171; font-weight:600;"></span>
+          </div>
+          <div style="text-align: right;">
+            <div id="periodApprovalBadge" style="font-weight:700; font-size:1.05rem;"></div>
+            <div id="periodHours" style="color:#27ae60; font-weight:700; margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <div id="leaveBalanceBar" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; font-size:0.9rem; margin-bottom:14px;">
+          <strong>Available Leave Balances:</strong> <span id="leaveBalanceText">Loading...</span>
+          <div style="color:#7f8c8d; font-size:0.82rem; margin-top:2px;">* Leaves exceeding available balance will result in Loss of Pay (LOP).</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="attendance-table" id="periodDaysTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Weekday</th>
+                <th>Schedule</th>
+                <th>Status</th>
+                <th>Leave Type</th>
+                <th>Daily Notes</th>
+              </tr>
+            </thead>
+            <tbody id="periodDaysBody"></tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 14px; margin-top: 18px; flex-wrap: wrap;">
+          <button type="button" id="submitEmployeeBtn" class="btn-primary">Submit Attendance for Approval</button>
+          <button type="button" id="submitManagerBtn" class="btn-success">Submit on Behalf of Employee (Auto-Approve)</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="approvalsPanel" class="attendance-section attendance-panel attendance-details" aria-labelledby="approvalsHeading" hidden>
+      <h2 id="approvalsHeading">Attendance Submissions & Senior Manager Approvals</h2>
+      <p>Senior Managers review submitted employee attendances. Submissions can be Approved, Denied, or Resent for modification with comments.</p>
+      
+      <div style="margin-bottom: 16px;">
+        <button type="button" id="refreshSubmissionsBtn" class="btn-primary">Refresh Submissions</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>Employee ID</th>
+              <th>Name</th>
+              <th>Grade</th>
+              <th>Period</th>
+              <th>Frequency</th>
+              <th>Total Hours</th>
+              <th>Submitted By</th>
+              <th>Status</th>
+              <th>Comments / Action</th>
+            </tr>
+          </thead>
+          <tbody id="submissionsRows"><tr><td colspan="9">Click Refresh Submissions to load.</td></tr></tbody>
+        </table>
       </div>
     </section>
 
@@ -176,9 +251,13 @@
     const searchPanel = document.getElementById('searchPanel');
     const markPanel = document.getElementById('markPanel');
     const calendarPanel = document.getElementById('calendarPanel');
+    const approvalsPanel = document.getElementById('approvalsPanel');
     let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let markCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let selectedMarkDate = null;
     let eligibleEmployees = [];
     let lastSavedAttendance = null;
+    let currentPeriodData = null;
 
     function setMessage(text, isError = false) {
       statusMessage.textContent = text;
@@ -209,12 +288,17 @@
     }
 
     function setMode(mode) {
-      const searching = mode === 'search';
-      searchPanel.hidden = !searching;
-      markPanel.hidden = searching;
-      document.getElementById('searchModeButton').setAttribute('aria-pressed', String(searching));
-      document.getElementById('markModeButton').setAttribute('aria-pressed', String(!searching));
+      searchPanel.hidden = mode !== 'search';
+      markPanel.hidden = mode !== 'mark';
+      approvalsPanel.hidden = mode !== 'approvals';
 
+      document.getElementById('searchModeButton').setAttribute('aria-pressed', String(mode === 'search'));
+      document.getElementById('markModeButton').setAttribute('aria-pressed', String(mode === 'mark'));
+      document.getElementById('approvalsModeButton').setAttribute('aria-pressed', String(mode === 'approvals'));
+
+      if (mode === 'approvals') {
+        loadSubmissions();
+      }
     }
 
     function populateEmployeeOptions(employees) {
@@ -233,7 +317,257 @@
         option.textContent = `${employee.first_name || ''} ${employee.last_name || ''} (#${employee.empid})`.trim();
         select.appendChild(option);
       }
-      document.getElementById('saveAttendance').disabled = employees.length === 0;
+    }
+
+    async function loadPeriod() {
+      const empid = document.getElementById('employeeSelect').value;
+      const targetDate = document.getElementById('periodTargetDate').value;
+      if (!empid) {
+        setMessage('Please select an employee first.', true);
+        return;
+      }
+      try {
+        const url = `/payroll/attendance/period?empid=${encodeURIComponent(empid)}&date=${encodeURIComponent(targetDate || '')}`;
+        const res = await requestJson(url);
+        currentPeriodData = res;
+        renderPeriodData(res);
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    }
+
+    function renderPeriodData(data) {
+      const card = document.getElementById('periodCard');
+      card.style.display = 'block';
+
+      const p = data.period;
+      const emp = data.employee;
+      const freqLabel = p.frequency.charAt(0).toUpperCase() + p.frequency.slice(1).replace('_', '-');
+      document.getElementById('periodTitle').textContent = `${freqLabel} Attendance Period: ${emp.name} (#${emp.empid})`;
+      document.getElementById('periodDates').textContent = `${p.start} to ${p.end} (${p.working_days_count} Scheduled Workdays)`;
+
+      const hoursEl = document.getElementById('periodHours');
+      hoursEl.textContent = `Total Required Hours: ${p.total_working_hours} hrs (9 hrs/day)`;
+
+      const badge = document.getElementById('periodApprovalBadge');
+      if (emp.grade === 'A') {
+        badge.textContent = 'Auto-Approved (Grade A - Approval NOT needed)';
+        badge.style.color = '#27ae60';
+      } else if (p.submission) {
+        const st = p.submission.status.toUpperCase();
+        badge.textContent = `Submission Status: ${st} (${p.submission.submitted_by === 'manager' ? 'By Manager' : 'By Employee'})`;
+        badge.style.color = p.submission.status === 'approved' ? '#27ae60' : (p.submission.status === 'denied' ? '#e74c3c' : '#d97706');
+        if (p.submission.manager_comment) {
+          badge.textContent += ` - Comment: "${p.submission.manager_comment}"`;
+        }
+      } else {
+        badge.textContent = 'Status: Not Submitted Yet';
+        badge.style.color = '#7f8c8d';
+      }
+
+      // Leave balances
+      const lb = p.leave_balances;
+      const lbArr = Object.entries(lb).map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v.available}/${v.max}`);
+      document.getElementById('leaveBalanceText').textContent = lbArr.join(' | ');
+
+      // Table rows
+      const tbody = document.getElementById('periodDaysBody');
+      tbody.innerHTML = '';
+      for (const d of p.days) {
+        const tr = document.createElement('tr');
+
+        // Date
+        const tdDate = document.createElement('td');
+        tdDate.textContent = d.work_date;
+        tr.appendChild(tdDate);
+
+        // Weekday
+        const tdWd = document.createElement('td');
+        tdWd.textContent = d.weekday;
+        tr.appendChild(tdWd);
+
+        // Schedule
+        const tdSched = document.createElement('td');
+        tdSched.textContent = d.is_working_day ? 'Working Day' : (d.description || 'Non-working / Holiday');
+        if (!d.is_working_day) tdSched.style.color = '#7f8c8d';
+        tr.appendChild(tdSched);
+
+        // Status select
+        const tdStatus = document.createElement('td');
+        const selStatus = document.createElement('select');
+        selStatus.className = 'period-status-select';
+        selStatus.dataset.workDate = d.work_date;
+        ['present', 'absent', 'leave'].forEach(optVal => {
+          const opt = document.createElement('option');
+          opt.value = optVal;
+          opt.textContent = optVal.charAt(0).toUpperCase() + optVal.slice(1);
+          if (d.status === optVal) opt.selected = true;
+          selStatus.appendChild(opt);
+        });
+        tdStatus.appendChild(selStatus);
+        tr.appendChild(tdStatus);
+
+        // Leave type select
+        const tdLt = document.createElement('td');
+        const selLt = document.createElement('select');
+        selLt.className = 'period-leave-type-select';
+        selLt.dataset.workDate = d.work_date;
+        selLt.style.display = selStatus.value === 'leave' ? 'inline-block' : 'none';
+        ['casual', 'sick', 'earned', 'maternity', 'paternity', 'adoption'].forEach(ltVal => {
+          const opt = document.createElement('option');
+          opt.value = ltVal;
+          opt.textContent = ltVal.charAt(0).toUpperCase() + ltVal.slice(1);
+          if (d.leave_type === ltVal) opt.selected = true;
+          selLt.appendChild(opt);
+        });
+        selStatus.addEventListener('change', () => {
+          selLt.style.display = selStatus.value === 'leave' ? 'inline-block' : 'none';
+        });
+        tdLt.appendChild(selLt);
+        tr.appendChild(tdLt);
+
+        // Notes
+        const tdNotes = document.createElement('td');
+        const inpNotes = document.createElement('input');
+        inpNotes.type = 'text';
+        inpNotes.className = 'period-notes-input';
+        inpNotes.dataset.workDate = d.work_date;
+        inpNotes.value = d.notes || '';
+        inpNotes.placeholder = 'Notes (optional)';
+        inpNotes.style.width = '100%';
+        tdNotes.appendChild(inpNotes);
+        tr.appendChild(tdNotes);
+
+        tbody.appendChild(tr);
+      }
+
+      setMessage(`Loaded attendance period for ${p.start} to ${p.end}.`);
+    }
+
+    async function submitPeriodAttendance(submittedBy) {
+      if (!currentPeriodData) return;
+      const empid = currentPeriodData.employee.empid;
+      const p = currentPeriodData.period;
+
+      const rows = document.querySelectorAll('#periodDaysBody tr');
+      const daysPayload = [];
+      rows.forEach(tr => {
+        const selStatus = tr.querySelector('.period-status-select');
+        const selLt = tr.querySelector('.period-leave-type-select');
+        const inpNotes = tr.querySelector('.period-notes-input');
+        daysPayload.push({
+          work_date: selStatus.dataset.workDate,
+          status: selStatus.value,
+          leave_type: selStatus.value === 'leave' ? selLt.value : null,
+          notes: inpNotes.value.trim()
+        });
+      });
+
+      const body = {
+        empid: empid,
+        period_start: p.start,
+        period_end: p.end,
+        frequency: p.frequency,
+        submitted_by: submittedBy,
+        days: daysPayload
+      };
+
+      try {
+        const res = await requestJson('/payroll/attendance/submit-period', {
+          method: 'POST',
+          body: JSON.stringify(body)
+        });
+        setMessage(res.message);
+        loadPeriod();
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    }
+
+    async function loadSubmissions() {
+      const tbody = document.getElementById('submissionsRows');
+      tbody.innerHTML = '<tr><td colspan="9">Loading submissions...</td></tr>';
+      try {
+        const res = await requestJson('/payroll/attendance/submissions');
+        tbody.innerHTML = '';
+        if (!res.submissions.length) {
+          tbody.innerHTML = '<tr><td colspan="9">No attendance submissions found.</td></tr>';
+          return;
+        }
+        for (const s of res.submissions) {
+          const tr = document.createElement('tr');
+          addCell(tr, s.empid);
+          addCell(tr, `${s.first_name || ''} ${s.last_name || ''}`.trim());
+          addCell(tr, s.grade || '-');
+          addCell(tr, `${s.period_start} to ${s.period_end}`);
+          addCell(tr, s.frequency);
+          addCell(tr, `${s.total_hours} hrs`);
+          addCell(tr, s.submitted_by);
+          const tdSt = addCell(tr, s.status.toUpperCase());
+          tdSt.style.fontWeight = '700';
+          tdSt.style.color = s.status === 'approved' ? '#27ae60' : (s.status === 'denied' ? '#e74c3c' : '#d97706');
+
+          const tdActions = document.createElement('td');
+          if (s.status === 'submitted' || s.status === 'resend') {
+            const btnApprove = document.createElement('button');
+            btnApprove.type = 'button';
+            btnApprove.className = 'btn-success';
+            btnApprove.textContent = 'Approve';
+            btnApprove.style.marginRight = '6px';
+            btnApprove.addEventListener('click', async () => {
+              try {
+                await requestJson(`/payroll/attendance/submissions/${s.submission_id}/action`, {
+                  method: 'POST', body: JSON.stringify({ action: 'approve' })
+                });
+                setMessage(`Submission #${s.submission_id} approved.`);
+                loadSubmissions();
+              } catch (e) { setMessage(e.message, true); }
+            });
+
+            const btnDeny = document.createElement('button');
+            btnDeny.type = 'button';
+            btnDeny.style.background = '#e74c3c';
+            btnDeny.style.color = 'white';
+            btnDeny.style.marginRight = '6px';
+            btnDeny.textContent = 'Deny';
+            btnDeny.addEventListener('click', async () => {
+              const c = prompt('Enter reason for denying attendance:');
+              if (c === null) return;
+              try {
+                await requestJson(`/payroll/attendance/submissions/${s.submission_id}/action`, {
+                  method: 'POST', body: JSON.stringify({ action: 'deny', comment: c })
+                });
+                setMessage(`Submission #${s.submission_id} denied.`, true);
+                loadSubmissions();
+              } catch (e) { setMessage(e.message, true); }
+            });
+
+            const btnResend = document.createElement('button');
+            btnResend.type = 'button';
+            btnResend.className = 'btn-primary';
+            btnResend.textContent = 'Resend with Comment';
+            btnResend.addEventListener('click', async () => {
+              const c = prompt('Enter comments/modifications needed for employee:');
+              if (!c) return;
+              try {
+                await requestJson(`/payroll/attendance/submissions/${s.submission_id}/action`, {
+                  method: 'POST', body: JSON.stringify({ action: 'resend', comment: c })
+                });
+                setMessage(`Submission #${s.submission_id} resent to employee for modification.`);
+                loadSubmissions();
+              } catch (e) { setMessage(e.message, true); }
+            });
+
+            tdActions.append(btnApprove, btnDeny, btnResend);
+          } else {
+            tdActions.textContent = s.manager_comment ? `Comment: ${s.manager_comment}` : 'Completed';
+          }
+          tr.appendChild(tdActions);
+          tbody.appendChild(tr);
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9" style="color:red;">Failed to load submissions: ${err.message}</td></tr>`;
+      }
     }
 
     function beginEdit(record) {
@@ -341,6 +675,68 @@
       renderCalendar(result.calendar);
     }
 
+    function renderMarkCalendar(days) {
+      const markCalendarGrid = document.getElementById('markCalendarGrid');
+      markCalendarGrid.replaceChildren();
+      const monthName = markCalendarMonth.toLocaleDateString('en-IN', {month: 'long', year: 'numeric'});
+      document.getElementById('markCalendarMonth').textContent = monthName;
+      for (const weekday of ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']) {
+        const heading = document.createElement('div');
+        heading.className = 'calendar-weekday';
+        heading.setAttribute('role', 'columnheader');
+        heading.textContent = weekday;
+        markCalendarGrid.appendChild(heading);
+      }
+      const firstOffset = new Date(markCalendarMonth.getFullYear(), markCalendarMonth.getMonth(), 1).getDay();
+      for (let blank = 0; blank < firstOffset; blank += 1) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-blank';
+        cell.setAttribute('aria-hidden', 'true');
+        markCalendarGrid.appendChild(cell);
+      }
+      for (const day of days) {
+        const isSunday = day.weekday_number === 6;
+        const isCustomHoliday = day.is_override && !day.is_working_day;
+        const isSelected = selectedMarkDate && day.work_date === selectedMarkDate;
+        const element = isSunday ? document.createElement('div') : document.createElement('button');
+        if (!isSunday) element.type = 'button';
+        let className = `calendar-day ${isSunday ? 'sunday' : day.is_working_day ? 'workday' : isCustomHoliday ? 'custom-holiday' : 'default-holiday'}${day.is_override ? ' override' : ''}`;
+        if (isSelected) className += ' selected';
+        element.className = className;
+        element.setAttribute('role', isSunday ? 'gridcell' : 'gridcell');
+        element.setAttribute('aria-label', `${day.work_date}, ${day.description || (day.is_working_day ? 'Working day' : 'Holiday')}${isSelected ? ' (selected)' : ''}`);
+        if (isSelected) element.setAttribute('aria-pressed', 'true');
+        const dateNumber = document.createElement('strong');
+        dateNumber.textContent = String(Number(day.work_date.slice(-2)));
+        const label = document.createElement('span');
+        label.className = 'calendar-day-label';
+        label.textContent = day.description || (day.is_working_day ? 'Working' : 'Holiday');
+        element.append(dateNumber, label);
+        if (!isSunday && day.is_working_day) {
+          element.addEventListener('click', () => selectMarkDate(day.work_date));
+        }
+        markCalendarGrid.appendChild(element);
+      }
+    }
+
+    async function loadMarkCalendar() {
+      const year = markCalendarMonth.getFullYear();
+      const month = markCalendarMonth.getMonth();
+      const start = localIsoDate(new Date(year, month, 1));
+      const end = localIsoDate(new Date(year, month + 1, 0));
+      const parameters = new URLSearchParams({start_date: start, end_date: end});
+      const result = await requestJson(`/payroll/calendar?${parameters}`);
+      renderMarkCalendar(result.calendar);
+    }
+
+    function selectMarkDate(dateStr) {
+      selectedMarkDate = dateStr;
+      document.getElementById('periodTargetDate').value = dateStr;
+      // Re-render to show selection
+      loadMarkCalendar();
+      setMessage(`Selected date: ${dateStr}. Click "Load Period" to load attendance period.`);
+    }
+
     function openCalendarEdit(day) {
       if (!day.can_override) return;
       document.getElementById('calendarDate').value = day.work_date;
@@ -353,6 +749,24 @@
 
     document.getElementById('searchModeButton').addEventListener('click', () => setMode('search'));
     document.getElementById('markModeButton').addEventListener('click', () => setMode('mark'));
+    document.getElementById('approvalsModeButton').addEventListener('click', () => setMode('approvals'));
+    document.getElementById('loadPeriodBtn').addEventListener('click', loadPeriod);
+    // Mark attendance calendar navigation
+    document.getElementById('markPrevMonth').addEventListener('click', async () => {
+      markCalendarMonth = new Date(markCalendarMonth.getFullYear(), markCalendarMonth.getMonth() - 1, 1);
+      try { await loadMarkCalendar(); } catch (error) { setMessage(error.message, true); }
+    });
+    document.getElementById('markNextMonth').addEventListener('click', async () => {
+      markCalendarMonth = new Date(markCalendarMonth.getFullYear(), markCalendarMonth.getMonth() + 1, 1);
+      try { await loadMarkCalendar(); } catch (error) { setMessage(error.message, true); }
+    });
+    // Load mark calendar when employee is selected
+    document.getElementById('employeeSelect').addEventListener('change', async () => {
+      try { await loadMarkCalendar(); } catch (error) { setMessage(error.message, true); }
+    });
+    document.getElementById('submitEmployeeBtn').addEventListener('click', () => submitPeriodAttendance('employee'));
+    document.getElementById('submitManagerBtn').addEventListener('click', () => submitPeriodAttendance('manager'));
+    document.getElementById('refreshSubmissionsBtn').addEventListener('click', loadSubmissions);
     document.getElementById('workCalendarLink').addEventListener('click', async event => {
       event.preventDefault();
       const link = event.currentTarget;
@@ -384,7 +798,7 @@
     document.getElementById('attendanceForm').addEventListener('submit', async event => {
       event.preventDefault();
       const payload = {
-        empid: Number(document.getElementById('employeeSelect').value),
+        empid: document.getElementById('employeeSelect').value,
         work_date: document.getElementById('workDate').value,
         status: document.getElementById('attendanceStatus').value,
         notes: document.getElementById('attendanceNotes').value.trim()
@@ -447,15 +861,14 @@
 
     async function initializePage() {
       const today = new Date();
-      document.getElementById('workDate').value = localIsoDate(today);
+      document.getElementById('periodTargetDate').value = localIsoDate(today);
       const result = await requestJson('/payroll/employees?with_active_pay_structure=1');
       populateEmployeeOptions(result.employees);
       if (!result.employees.length) {
         setMessage('No active employees have an active pay structure yet. Add a pay structure first.');
-      } else {
-
       }
       await loadCalendar();
+      await loadMarkCalendar();
     }
 
     initializePage().catch(error => setMessage(error.message, true));

@@ -35,7 +35,7 @@
 
     <div class="form-group">
       <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
-      <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+      <input type="text" id="searchEmpId" placeholder="Enter Employee ID">
     </div>
 
     <button id="searchBtn">Search</button>
@@ -63,7 +63,7 @@
     <form id="taxForm">
       <div class="form-group">
         <label for="empid">Employee ID *</label>
-        <input type="number" id="empid" required placeholder="Enter Employee ID">
+        <input type="text" id="empid" required placeholder="Enter Employee ID">
       </div>
 
       <div class="form-group">
@@ -120,7 +120,7 @@
       document.getElementById('name').value = '';
       document.getElementById('email').value = '';
 
-      if (!empid || isNaN(empid)) return;
+      if (!empid) return;
 
       try {
         const response = await fetch(`/employee/${empid}`);

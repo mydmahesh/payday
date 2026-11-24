@@ -51,11 +51,23 @@
         <label for="cutoffDate">Cutoff date
           <input type="date" id="cutoffDate" required>
         </label>
-        <button type="button" id="generateRun">Generate or refresh draft</button>
+        <label for="payTermSelect">Pay Term
+          <select id="payTermSelect">
+            <option value="all">All Pay Terms</option>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-Weekly</option>
+            <option value="one_time">One-time</option>
+          </select>
+        </label>
+        <button type="button" id="generateRun">Generate / Refresh</button>
         <div class="payroll-actions">
+          <button type="button" id="submitRun" class="btn-primary" disabled>Submit for Approval</button>
           <button type="button" id="approveRun" class="btn-success" disabled>Approve run</button>
-          <button type="button" id="recordPayments"  disabled>Record pending payments</button>
-          <button type="button" id="overduesButton"class="btn-success">Overdues</button>
+          <button type="button" id="denyRun" style="background: #e74c3c; color: white;" disabled>Deny</button>
+          <button type="button" id="createPayments" class="btn-success" disabled>Create Payments</button>
+          <button type="button" id="recordPayments" disabled>Record Payments</button>
+          <button type="button" id="overduesButton" class="btn-success">Overdues</button>
         </div>
       </div>
       <div id="message" class="status-line" role="status" aria-live="polite"></div>
@@ -86,9 +98,10 @@
           <thead><tr>
             <th>Employee</th><th>Type</th><th>Pay group / term</th>
             <th class="amount">Monthly basis</th><th>Scheduled days</th><th>Present days</th>
+            <th>LOP Days</th><th class="amount">LOP Deduction</th>
             <th class="amount">Pay amount</th><th>Review / payment status</th>
           </tr></thead>
-          <tbody id="payrollLines"><tr><td class="empty" colspan="8">Choose a cutoff date and generate a run.</td></tr></tbody>
+          <tbody id="payrollLines"><tr><td class="empty" colspan="10">Choose a cutoff date and generate a run.</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -133,9 +146,20 @@
       document.getElementById('totalAmount').textContent = money(run.total_amount);
       document.getElementById('employeeCount').textContent = run.employee_count;
       document.getElementById('exceptionCount').textContent = run.exception_count;
-      document.getElementById('runStatus').textContent = run.status.replaceAll('_', ' ');
-      document.getElementById('approveRun').disabled = run.status !== 'draft' || run.exception_count > 0;
-      document.getElementById('recordPayments').disabled = !['approved', 'partially_paid'].includes(run.status);
+      document.getElementById('runStatus').textContent = run.status.replaceAll('_', ' ').toUpperCase();
+
+      const canSubmit = ['draft', 'generated'].includes(run.status) && run.exception_count === 0;
+      const canApprove = ['draft', 'generated', 'submitted'].includes(run.status) && run.exception_count === 0;
+      const canDeny = ['draft', 'generated', 'submitted'].includes(run.status);
+      const canCreate = run.status === 'approved';
+      const canRecord = ['approved', 'created', 'partially_paid'].includes(run.status);
+
+      document.getElementById('submitRun').disabled = !canSubmit;
+      document.getElementById('approveRun').disabled = !canApprove;
+      document.getElementById('denyRun').disabled = !canDeny;
+      document.getElementById('createPayments').disabled = !canCreate;
+      document.getElementById('recordPayments').disabled = !canRecord;
+
       const overdueRows = document.getElementById('overdueRows');
       overdueRows.replaceChildren();
       const overdueSection = document.getElementById('overduesSection');
@@ -144,7 +168,7 @@
       if (!run.lines.length) {
         const row = document.createElement('tr');
         appendCell(row, 'No active employees are eligible for this cutoff.', 'empty');
-        row.firstChild.colSpan = 8;
+        row.firstChild.colSpan = 10;
         payrollLines.appendChild(row);
         return;
       }
@@ -156,6 +180,8 @@
         appendCell(row, line.monthly_salary == null ? '—' : money(line.monthly_salary), 'amount');
         appendCell(row, line.scheduled_days);
         appendCell(row, line.present_days);
+        appendCell(row, line.lop_days != null ? line.lop_days : 0);
+        appendCell(row, line.lop_amount ? money(line.lop_amount) : '₹0.00', 'amount');
         appendCell(row, line.line_status === 'ready' ? money(line.amount) : '—', 'amount');
         const statusCell = document.createElement('td');
         if (line.exception_message) {
@@ -223,8 +249,52 @@
 
     document.getElementById('generateRun').addEventListener('click', async () => {
       const cutoffDate = document.getElementById('cutoffDate').value;
+      const payTerm = document.getElementById('payTermSelect').value;
       if (!cutoffDate) { setMessage('Select a cutoff date.', true); return; }
       try {
+        const result = await requestJson('/payroll/runs', {
+          method: 'POST', body: JSON.stringify({ cutoff_date: cutoffDate, pay_term: payTerm })
+        });
+        renderRun(result.run);
+        setMessage(`Payroll run for ${result.run.period_start} generated. Review exceptions before submission.`);
+      } catch (error) { setMessage(error.message, true); }
+    });
+
+    document.getElementById('submitRun').addEventListener('click', async () => {
+      if (!currentRun) return;
+      try {
+        const result = await requestJson(`/payroll/runs/${currentRun.run_id}/submit`, { method: 'POST', body: '{}' });
+        renderRun(result.run);
+        setMessage('Payroll run submitted for Senior Manager approval.');
+      } catch (error) { setMessage(error.message, true); }
+    });
+
+    document.getElementById('approveRun').addEventListener('click', async () => {
+      if (!currentRun) return;
+      try {
+        const result = await requestJson(`/payroll/runs/${currentRun.run_id}/approve`, { method: 'POST', body: '{}' });
+        renderRun(result.run);
+        setMessage('Payroll run approved by Senior Manager.');
+      } catch (error) { setMessage(error.message, true); }
+    });
+
+    document.getElementById('denyRun').addEventListener('click', async () => {
+      if (!currentRun) return;
+      try {
+        const result = await requestJson(`/payroll/runs/${currentRun.run_id}/deny`, { method: 'POST', body: '{}' });
+        renderRun(result.run);
+        setMessage('Payroll run denied.', true);
+      } catch (error) { setMessage(error.message, true); }
+    });
+
+    document.getElementById('createPayments').addEventListener('click', async () => {
+      if (!currentRun) return;
+      try {
+        const result = await requestJson(`/payroll/runs/${currentRun.run_id}/create-payments`, { method: 'POST', body: '{}' });
+        renderRun(result.run);
+        setMessage('Payroll payments created.');
+      } catch (error) { setMessage(error.message, true); }
+    });
         const result = await requestJson('/payroll/runs', {
           method: 'POST', body: JSON.stringify({ cutoff_date: cutoffDate })
         });

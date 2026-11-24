@@ -95,14 +95,12 @@
 	<div class="form-group" id="gradeValueGroup" style="display:none;">
 	<label for="gradeValue">Grade</label>
 	<select id="gradeValue">
-    <option value="E1">E1</option>
-    <option value="E2">E2</option>
-    <option value="L1">L1</option>
-    <option value="L2">L2</option>
-    <option value="M1">M1</option>
-    <option value="M2">M2</option>
-    <option value="VP">VP</option>
-    <option value="CEO">CEO</option>
+    <option value="A">Grade A – Management (Senior Management)</option>
+    <option value="B">Grade B – Regular (Regular Employee)</option>
+    <option value="C">Grade C – Contract (Contract Employee)</option>
+    <option value="D">Grade D – Staff (Support Office Staff)</option>
+    <option value="E">Grade E – Supplier (Suppliers)</option>
+    <option value="F">Grade F – Other (Others)</option>
 	</select>
 	</div>
     <button id="doSearchBtn" class="action-btn">Search</button>
@@ -160,14 +158,12 @@
 	  <label for="grade">Grade *</label>
 	  <select id="grade" required>
 	  <option value="">Select Grade</option>
-	  <option value="E1">E1</option>
-	  <option value="E2">E2</option>
-	  <option value="L1">L1</option>
-	  <option value="L2">L2</option>
-	  <option value="M1">M1</option>
-	  <option value="M2">M2</option>
-	  <option value="VP">VP</option>
-	  <option value="CEO">CEO</option>
+	  <option value="A">Grade A – Management (Senior Management)</option>
+	  <option value="B">Grade B – Regular (Regular Employee)</option>
+	  <option value="C">Grade C – Contract (Contract Employee)</option>
+	  <option value="D">Grade D – Staff (Support Office Staff)</option>
+	  <option value="E">Grade E – Supplier (Suppliers)</option>
+	  <option value="F">Grade F – Other (Others)</option>
 	  </select>
 </div>
       <div class="form-group">
@@ -343,7 +339,7 @@ document.getElementById('doSearchBtn').addEventListener('click', async () => {
           <td>${emp.grade || ''}</td>
           <td>${emp.is_active ? 'Yes' : 'No'}</td>
           <td>
-            <a href="/static/edit_employee_details.html?id=${emp.empid}" class="edit-link">
+            <a href="/edit_employee_details?empid=${emp.empid}" class="edit-link">
               Edit
             </a>
           </td>

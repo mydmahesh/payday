@@ -8,7 +8,9 @@ from payroll import (
     calculate_payroll_lines,
     create_or_refresh_run,
     ensure_payroll_schema,
+    pay_term_period_bounds,
     payroll_run_payload,
+    set_pay_term_setting,
 )
 
 
@@ -147,6 +149,19 @@ class PayrollCalculationTests(unittest.TestCase):
         columns = {row['name'] for row in self.connection.execute('PRAGMA table_info(payments)')}
         self.assertIn('payroll_line_id', columns)
         self.assertEqual(self.connection.execute('SELECT COUNT(*) FROM payments').fetchone()[0], 1)
+
+    def test_monthly_custom_day_cutoff_bounds(self):
+        set_pay_term_setting(self.connection, 'monthly_cutoff_day', 'custom_day')
+        set_pay_term_setting(self.connection, 'monthly_cutoff_custom_day', '20')
+        start, end = pay_term_period_bounds(self.connection, 'monthly', date(2026, 6, 25))
+        self.assertEqual(start, date(2026, 6, 1))
+        self.assertEqual(end, date(2026, 6, 20))
+
+        # Test capping on February (non-leap year 2025: 28 days)
+        set_pay_term_setting(self.connection, 'monthly_cutoff_custom_day', '31')
+        start, end = pay_term_period_bounds(self.connection, 'monthly', date(2025, 2, 10))
+        self.assertEqual(start, date(2025, 2, 1))
+        self.assertEqual(end, date(2025, 2, 28))
 
 
 if __name__ == '__main__':

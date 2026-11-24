@@ -69,7 +69,7 @@
   <h2>Search Personal Records</h2>
   <div class="form-group">
     <label for="searchEmpId">Filter by Employee ID (leave blank for all)</label>
-    <input type="number" id="searchEmpId" placeholder="Enter Employee ID">
+    <input type="text" id="searchEmpId" placeholder="Enter Employee ID">
   </div>
   <button id="searchBtn" style="padding:14px 40px;">
     Search
@@ -98,7 +98,7 @@
   <form id="personalForm">
     <div class="form-group">
       <label for="empid">Employee ID *</label>
-      <input type="number" id="empid" required>
+      <input type="text" id="empid" required>
     </div>	
     <div class="form-group">
       <label for="email">Email</label>
@@ -211,21 +211,22 @@ function isValidPhone(phone) {
 <!-- Inside the <script> tag of personal_details.html -->
 
 // When user leaves the empid field in ADD form
-document.getElementById('empid').addEventListener('blur', async () => {
+async function handleEmpidLookup() {
   const empid = document.getElementById('empid').value.trim();
   
   // Clear previous data & messages
   clearPersonalFormFields();
   document.getElementById('message').textContent = '';
   document.querySelector('#personalForm button[type="submit"]').disabled = false;
+  document.getElementById('empid').style.borderColor = '';
 
-  if (!empid || isNaN(empid)) {
+  if (!empid) {
     return;
   }
 
   try {
     // Step 1: Check if employee exists in main employee table
-    const empResponse = await fetch(`/employee/${empid}`);
+    const empResponse = await fetch(`/employee/${encodeURIComponent(empid)}`);
     const empResult   = await empResponse.json();
 
     if (empResult.status !== 'success' || !empResult.employee) {
@@ -235,7 +236,7 @@ document.getElementById('empid').addEventListener('blur', async () => {
     }
 
     // Step 2: Check if personal details already exist
-    const personalResponse = await fetch(`/personal_record/${empid}`);
+    const personalResponse = await fetch(`/personal_record/${encodeURIComponent(empid)}`);
     const personalResult   = await personalResponse.json();
 
     if (personalResult.status === 'success' && personalResult.record) {
@@ -252,7 +253,7 @@ document.getElementById('empid').addEventListener('blur', async () => {
       // Disable save to prevent accidental overwrite
       document.querySelector('#personalForm button[type="submit"]').disabled = true;
 
-      // You can also highlight the empid field
+      // Highlight the empid field
       document.getElementById('empid').style.borderColor = '#e74c3c';
       
       return;
@@ -261,7 +262,11 @@ document.getElementById('empid').addEventListener('blur', async () => {
     // ────────────────────────────────────────────────
     //  No personal record yet → safe to add → auto-fill name & email
     // ────────────────────────────────────────────────
-    document.getElementById('name').value  = empResult.employee.first_name + ' ' + (empResult.employee.last_name || '');
+    const firstName = empResult.employee.first_name || '';
+    const lastName  = empResult.employee.last_name || '';
+    const fullName  = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+    document.getElementById('name').value  = fullName;
     document.getElementById('email').value = empResult.employee.email || '';
 
     showToast('Employee found — you can now add personal details', 'success');
@@ -270,7 +275,16 @@ document.getElementById('empid').addEventListener('blur', async () => {
     showToast('Failed to validate Employee ID', 'error');
     console.error(err);
   }
-});
+}
+
+document.getElementById('empid').addEventListener('blur', handleEmpidLookup);
+document.getElementById('empid').addEventListener('change', handleEmpidLookup);
+
+const urlEmpid = new URLSearchParams(window.location.search).get('empid');
+if (urlEmpid) {
+  document.getElementById('empid').value = urlEmpid;
+  handleEmpidLookup();
+}
 
 function clearPersonalFormFields() {
   const fields = [
@@ -301,7 +315,7 @@ function clearPersonalFormFields() {
         phoneHelp.style.display = 'none';
     }
     const data = {
-      empid: parseInt(document.getElementById('empid').value),
+      empid: document.getElementById('empid').value.trim(),
       Name: document.getElementById('name').value.trim(),
       Gender: document.getElementById('gender').value || null,
       dob: document.getElementById('dob').value || null,
@@ -367,7 +381,7 @@ function clearPersonalFormFields() {
             <td>${rec.email || ''}</td>
             <td>${rec.phone || ''}</td>
             <td>
-  <a href="/static/edit_personal_details.html?empid=${rec.empid}" class="button-link">
+  <a href="/edit_personal_details?empid=${rec.empid}" class="button-link">
     Edit
   </a>
 </td>
