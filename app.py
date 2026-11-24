@@ -24,6 +24,12 @@ from payroll import (
     payroll_run_payload,
     submit_payroll_run,
     update_run_payment_status,
+    generate_payslip_html,
+    generate_payslip_pdf,
+    generate_all_payslips_pdf,
+    generate_bank_advice_csv,
+    generate_bank_advice_excel,
+    generate_tds_report,
 )
 
 app = Flask(__name__)
@@ -1912,6 +1918,118 @@ def create_payroll_run_payments_endpoint(run_id):
                         (line['line_id'],),
                     )
         return jsonify({"status": "success", "run": payroll_run_payload(conn, run_id)})
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    finally:
+        conn.close()
+
+
+# ==================== PAYSLIP ENDPOINTS ====================
+
+@app.route('/payroll/runs/<int:run_id>/payslip/<empid>', methods=['GET'])
+def get_payslip_html(run_id, empid):
+    """Get HTML payslip for a specific employee."""
+    conn = get_db_connection()
+    try:
+        html = generate_payslip_html(conn, run_id, empid)
+        return html, 200, {'Content-Type': 'text/html'}
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 404
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>/payslip/<empid>/pdf', methods=['GET'])
+def get_payslip_pdf(run_id, empid):
+    """Get PDF payslip for a specific employee."""
+    conn = get_db_connection()
+    try:
+        pdf_bytes = generate_payslip_pdf(conn, run_id, empid)
+        from flask import send_file
+        import io
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"payslip_{empid}_{run_id}.pdf"
+        )
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 404
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>/payslips/pdf', methods=['GET'])
+def get_all_payslips_pdf(run_id):
+    """Get combined PDF with all payslips for a payroll run."""
+    conn = get_db_connection()
+    try:
+        pdf_bytes = generate_all_payslips_pdf(conn, run_id)
+        from flask import send_file
+        import io
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"payslips_run_{run_id}.pdf"
+        )
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 404
+    finally:
+        conn.close()
+
+
+# ==================== BANK ADVICE ENDPOINTS ====================
+
+@app.route('/payroll/runs/<int:run_id>/bank-advice/csv', methods=['GET'])
+def get_bank_advice_csv(run_id):
+    """Get bank advice CSV for salary disbursement."""
+    conn = get_db_connection()
+    try:
+        csv_content = generate_bank_advice_csv(conn, run_id)
+        from flask import send_file
+        import io
+        return send_file(
+            io.BytesIO(csv_content.encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f"bank_advice_run_{run_id}.csv"
+        )
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/payroll/runs/<int:run_id>/bank-advice/excel', methods=['GET'])
+def get_bank_advice_excel(run_id):
+    """Get bank advice Excel for salary disbursement."""
+    conn = get_db_connection()
+    try:
+        excel_bytes = generate_bank_advice_excel(conn, run_id)
+        from flask import send_file
+        import io
+        return send_file(
+            io.BytesIO(excel_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"bank_advice_run_{run_id}.xlsx"
+        )
+    except PayrollError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    finally:
+        conn.close()
+
+
+# ==================== TDS REPORT ENDPOINT ====================
+
+@app.route('/payroll/runs/<int:run_id>/tds-report', methods=['GET'])
+def get_tds_report(run_id):
+    """Get TDS deduction report for a payroll run."""
+    conn = get_db_connection()
+    try:
+        report = generate_tds_report(conn, run_id)
+        return jsonify({"status": "success", "report": report})
     except PayrollError as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
     finally:
