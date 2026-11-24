@@ -13,6 +13,70 @@ import holidays
 EMPLOYMENT_TYPES = {"permanent", "contractor", "contingent", "supplier", "other"}
 PAYMENT_STATUSES = {"pending", "completed", "failed"}
 
+# Indian Tax Configuration (FY 2024-25 / AY 2025-26)
+TAX_REGIMES = {"old", "new"}
+
+# PF Configuration
+PF_EMPLOYEE_RATE = Decimal("0.12")      # 12% employee contribution
+PF_EMPLOYER_RATE = Decimal("0.12")      # 12% employer contribution
+PF_EMPLOYER_EPS_RATE = Decimal("0.0833") # 8.33% goes to EPS (pension)
+PF_EMPLOYER_EPF_RATE = Decimal("0.0367") # 3.67% goes to EPF
+PF_WAGE_CEILING = 15000                 # Monthly wage ceiling for PF
+
+# ESI Configuration (FY 2024-25)
+ESI_EMPLOYEE_RATE = Decimal("0.0075")   # 0.75% employee contribution
+ESI_EMPLOYER_RATE = Decimal("0.0325")   # 3.25% employer contribution
+ESI_WAGE_CEILING = 21000                # Monthly wage ceiling for ESI
+
+# Professional Tax Slabs (varies by state - using Maharashtra as default)
+# Monthly slabs for Maharashtra
+PROFESSIONAL_TAX_SLABS = [
+    (0, 7500, 0),
+    (7501, 10000, 175),
+    (10001, float('inf'), 200),
+]
+
+# Old Tax Regime Slabs (FY 2024-25)
+OLD_TAX_SLABS = [
+    (0, 250000, Decimal("0")),
+    (250001, 500000, Decimal("0.05")),
+    (500001, 1000000, Decimal("0.20")),
+    (1000001, float('inf'), Decimal("0.30")),
+]
+
+# New Tax Regime Slabs (FY 2024-25) - u/s 115BAC
+NEW_TAX_SLABS = [
+    (0, 300000, Decimal("0")),
+    (300001, 600000, Decimal("0.05")),
+    (600001, 900000, Decimal("0.10")),
+    (900001, 1200000, Decimal("0.15")),
+    (1200001, 1500000, Decimal("0.20")),
+    (1500001, float('inf'), Decimal("0.30")),
+]
+
+# Standard Deduction (Old Regime)
+STANDARD_DEDUCTION_OLD = 50000
+# Standard Deduction (New Regime)
+STANDARD_DEDUCTION_NEW = 75000
+
+# Section 87A Rebate Limits
+REBATE_87A_OLD_LIMIT = 500000    # Taxable income up to 5L
+REBATE_87A_OLD_MAX = 12500
+REBATE_87A_NEW_LIMIT = 700000    # Taxable income up to 7L
+REBATE_87A_NEW_MAX = 25000
+
+# Surcharge Rates (Old & New Regime)
+SURCHARGE_SLABS = [
+    (0, 5000000, Decimal("0")),
+    (5000001, 10000000, Decimal("0.10")),
+    (10000001, 20000000, Decimal("0.15")),
+    (20000001, 50000000, Decimal("0.25")),
+    (50000001, float('inf'), Decimal("0.37")),  # Capped at 25% for new regime
+]
+
+# Health & Education Cess
+CESS_RATE = Decimal("0.04")
+
 GRADE_CONFIG = {
     'A': {
         'pay_group': 'Management',
@@ -267,6 +331,17 @@ def ensure_payroll_schema(connection: sqlite3.Connection) -> None:
             present_days INTEGER NOT NULL DEFAULT 0,
             lop_days INTEGER DEFAULT 0,
             lop_amount_minor INTEGER DEFAULT 0,
+            -- Tax and deduction fields
+            pf_employee_minor INTEGER DEFAULT 0,
+            pf_employer_minor INTEGER DEFAULT 0,
+            esi_employee_minor INTEGER DEFAULT 0,
+            esi_employer_minor INTEGER DEFAULT 0,
+            professional_tax_minor INTEGER DEFAULT 0,
+            tds_minor INTEGER DEFAULT 0,
+            other_deductions_minor INTEGER DEFAULT 0,
+            total_deductions_minor INTEGER DEFAULT 0,
+            net_pay_minor INTEGER NOT NULL DEFAULT 0,
+            tax_regime TEXT DEFAULT 'new',
             amount_minor INTEGER NOT NULL DEFAULT 0,
             line_status TEXT NOT NULL CHECK (line_status IN ('ready', 'exception')),
             payment_status TEXT NOT NULL DEFAULT 'unrecorded'
@@ -293,6 +368,22 @@ def ensure_payroll_schema(connection: sqlite3.Connection) -> None:
             connection.execute("ALTER TABLE payroll_lines ADD COLUMN lop_days INTEGER DEFAULT 0")
         if "lop_amount_minor" not in pl_cols:
             connection.execute("ALTER TABLE payroll_lines ADD COLUMN lop_amount_minor INTEGER DEFAULT 0")
+        # Tax and deduction columns
+        tax_columns = [
+            ("pf_employee_minor", "INTEGER DEFAULT 0"),
+            ("pf_employer_minor", "INTEGER DEFAULT 0"),
+            ("esi_employee_minor", "INTEGER DEFAULT 0"),
+            ("esi_employer_minor", "INTEGER DEFAULT 0"),
+            ("professional_tax_minor", "INTEGER DEFAULT 0"),
+            ("tds_minor", "INTEGER DEFAULT 0"),
+            ("other_deductions_minor", "INTEGER DEFAULT 0"),
+            ("total_deductions_minor", "INTEGER DEFAULT 0"),
+            ("net_pay_minor", "INTEGER DEFAULT 0"),
+            ("tax_regime", "TEXT DEFAULT 'new'"),
+        ]
+        for col_name, col_type in tax_columns:
+            if col_name not in pl_cols:
+                connection.execute(f"ALTER TABLE payroll_lines ADD COLUMN {col_name} {col_type}")
 
     if "pd_employees" in tables:
         employee_columns = {
@@ -472,6 +563,194 @@ def _minor_units(value: Any) -> int:
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise PayrollError("Salary must be a valid amount") from exc
     return int(amount * 100)
+
+
+# ==================== TAX CALCULATION FUNCTIONS ====================
+
+def calculate_pf(gross_monthly: Decimal) -> tuple[int, int]:
+    """Calculate PF contributions (employee and employer) in minor units.
+
+    Returns: (employee_pf_minor, employer_pf_minor)
+    PF is calculated on basic + DA, capped at ₹15,000/month wage ceiling.
+    Employee: 12%, Employer: 12% (8.33% EPS + 3.67% EPF)
+    """
+    pf_wage = min(gross_monthly, Decimal(str(PF_WAGE_CEILING)))
+    employee_pf = (pf_wage * PF_EMPLOYEE_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    employer_pf = (pf_wage * PF_EMPLOYER_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return int(employee_pf * 100), int(employer_pf * 100)
+
+
+def calculate_esi(gross_monthly: Decimal) -> tuple[int, int]:
+    """Calculate ESI contributions (employee and employer) in minor units.
+
+    Returns: (employee_esi_minor, employer_esi_minor)
+    ESI applies to employees with gross <= ₹21,000/month.
+    Employee: 0.75%, Employer: 3.25%
+    """
+    if gross_monthly > Decimal(str(ESI_WAGE_CEILING)):
+        return 0, 0
+    employee_esi = (gross_monthly * ESI_EMPLOYEE_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    employer_esi = (gross_monthly * ESI_EMPLOYER_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return int(employee_esi * 100), int(employer_esi * 100)
+
+
+def calculate_professional_tax(gross_monthly: Decimal) -> int:
+    """Calculate Professional Tax in minor units (Maharashtra slabs as default).
+
+    Monthly slabs:
+    - Up to ₹7,500: ₹0
+    - ₹7,501 - ₹10,000: ₹175
+    - Above ₹10,000: ₹200
+    """
+    for min_slab, max_slab, tax in PROFESSIONAL_TAX_SLABS:
+        if min_slab <= gross_monthly <= max_slab:
+            return tax * 100
+    return 200 * 100  # Default to highest slab
+
+
+def calculate_tds_old_regime(annual_taxable_income: Decimal) -> Decimal:
+    """Calculate annual TDS under Old Tax Regime."""
+    tax = Decimal("0")
+    remaining = annual_taxable_income
+
+    for min_slab, max_slab, rate in OLD_TAX_SLABS:
+        if remaining <= 0:
+            break
+        slab_income = min(remaining, Decimal(str(max_slab)) - Decimal(str(min_slab)))
+        tax += slab_income * rate
+        remaining -= slab_income
+
+    # Section 87A Rebate
+    if annual_taxable_income <= Decimal(str(REBATE_87A_OLD_LIMIT)):
+        tax = max(Decimal("0"), tax - Decimal(str(REBATE_87A_OLD_MAX)))
+
+    # Surcharge
+    surcharge = Decimal("0")
+    surcharge_rate = Decimal("0")
+    for min_slab, max_slab, rate in SURCHARGE_SLABS:
+        if annual_taxable_income > Decimal(str(min_slab)):
+            surcharge_rate = rate
+        else:
+            break
+    surcharge = tax * surcharge_rate
+
+    # Health & Education Cess (4% on tax + surcharge)
+    cess = (tax + surcharge) * CESS_RATE
+
+    return (tax + surcharge + cess).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_tds_new_regime(annual_taxable_income: Decimal) -> Decimal:
+    """Calculate annual TDS under New Tax Regime (u/s 115BAC)."""
+    tax = Decimal("0")
+    remaining = annual_taxable_income
+
+    for min_slab, max_slab, rate in NEW_TAX_SLABS:
+        if remaining <= 0:
+            break
+        slab_income = min(remaining, Decimal(str(max_slab)) - Decimal(str(min_slab)))
+        tax += slab_income * rate
+        remaining -= slab_income
+
+    # Section 87A Rebate (New Regime)
+    if annual_taxable_income <= Decimal(str(REBATE_87A_NEW_LIMIT)):
+        tax = max(Decimal("0"), tax - Decimal(str(REBATE_87A_NEW_MAX)))
+
+    # Surcharge (capped at 25% for new regime)
+    surcharge = Decimal("0")
+    surcharge_rate = Decimal("0")
+    for min_slab, max_slab, rate in SURCHARGE_SLABS:
+        if annual_taxable_income > Decimal(str(min_slab)):
+            surcharge_rate = min(rate, Decimal("0.25"))  # Cap at 25% for new regime
+        else:
+            break
+    surcharge = tax * surcharge_rate
+
+    # Health & Education Cess (4% on tax + surcharge)
+    cess = (tax + surcharge) * CESS_RATE
+
+    return (tax + surcharge + cess).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_tds(annual_gross: Decimal, tax_regime: str = "new", deductions_80c: Decimal = Decimal("0")) -> int:
+    """Calculate monthly TDS in minor units.
+
+    Args:
+        annual_gross: Annual gross salary
+        tax_regime: 'old' or 'new'
+        deductions_80c: Section 80C deductions (max 1.5L for old regime, 0 for new)
+
+    Returns:
+        Monthly TDS in minor units
+    """
+    if tax_regime == "old":
+        # Old regime: Standard deduction + 80C
+        taxable_income = annual_gross - Decimal(str(STANDARD_DEDUCTION_OLD)) - min(deductions_80c, Decimal("150000"))
+        annual_tds = calculate_tds_old_regime(max(taxable_income, Decimal("0")))
+    else:
+        # New regime: Only standard deduction (₹75,000 from FY 2024-25)
+        taxable_income = annual_gross - Decimal(str(STANDARD_DEDUCTION_NEW))
+        annual_tds = calculate_tds_new_regime(max(taxable_income, Decimal("0")))
+
+    # Monthly TDS
+    monthly_tds = (annual_tds / Decimal("12")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return int(monthly_tds * 100)
+
+
+def calculate_tax_and_deductions(
+    connection: sqlite3.Connection,
+    gross_monthly: Decimal,
+    employment_type: str,
+    tax_regime: str = "new",
+    deductions_80c: Decimal = Decimal("0"),
+    other_deductions: Decimal = Decimal("0"),
+) -> dict[str, int]:
+    """Calculate all tax and deduction components for an employee.
+
+    Returns dict with all deduction amounts in minor units.
+    """
+    # Annualize gross for TDS calculation
+    annual_gross = gross_monthly * Decimal("12")
+
+    # PF (only for permanent employees)
+    pf_employee_minor, pf_employer_minor = 0, 0
+    if employment_type == "permanent":
+        pf_employee_minor, pf_employer_minor = calculate_pf(gross_monthly)
+
+    # ESI (for employees with gross <= 21,000)
+    esi_employee_minor, esi_employer_minor = calculate_esi(gross_monthly)
+
+    # Professional Tax
+    professional_tax_minor = calculate_professional_tax(gross_monthly)
+
+    # TDS
+    tds_minor = calculate_tds(annual_gross, tax_regime, deductions_80c)
+
+    # Other deductions
+    other_deductions_minor = int(other_deductions * 100)
+
+    # Total deductions (employee side)
+    total_deductions_minor = (
+        pf_employee_minor + esi_employee_minor + professional_tax_minor +
+        tds_minor + other_deductions_minor
+    )
+
+    # Net pay
+    gross_minor = int(gross_monthly * 100)
+    net_pay_minor = max(0, gross_minor - total_deductions_minor)
+
+    return {
+        "pf_employee_minor": pf_employee_minor,
+        "pf_employer_minor": pf_employer_minor,
+        "esi_employee_minor": esi_employee_minor,
+        "esi_employer_minor": esi_employer_minor,
+        "professional_tax_minor": professional_tax_minor,
+        "tds_minor": tds_minor,
+        "other_deductions_minor": other_deductions_minor,
+        "total_deductions_minor": total_deductions_minor,
+        "net_pay_minor": net_pay_minor,
+        "gross_minor": gross_minor,
+    }
 
 
 def _employee_name(employee: sqlite3.Row) -> str:
@@ -662,6 +941,16 @@ def calculate_payroll_lines(
             "present_days": 0,
             "lop_days": 0,
             "lop_amount_minor": 0,
+            "pf_employee_minor": 0,
+            "pf_employer_minor": 0,
+            "esi_employee_minor": 0,
+            "esi_employer_minor": 0,
+            "professional_tax_minor": 0,
+            "tds_minor": 0,
+            "other_deductions_minor": 0,
+            "total_deductions_minor": 0,
+            "net_pay_minor": 0,
+            "tax_regime": "new",
             "amount_minor": 0,
             "line_status": "exception" if problem else "ready",
             "payment_status": "unrecorded",
@@ -791,6 +1080,46 @@ def calculate_payroll_lines(
                 line["amount_minor"] = _minor_units(amount)
                 if line["amount_minor"] == 0:
                     line["payment_status"] = "not_payable"
+
+        # ===== TAX AND DEDUCTION CALCULATIONS =====
+        # Only calculate for ready lines with positive gross
+        if line["line_status"] == "ready" and line["amount_minor"] > 0:
+            gross_monthly = Decimal(line["amount_minor"]) / Decimal("100")
+            tax_regime = "new"  # Default to new regime, could be made configurable per employee
+            deductions_80c = Decimal("0")  # Could be fetched from employee tax declarations
+
+            tax_calc = calculate_tax_and_deductions(
+                connection=connection,
+                gross_monthly=gross_monthly,
+                employment_type=emp_type,
+                tax_regime=tax_regime,
+                deductions_80c=deductions_80c,
+            )
+
+            line["pf_employee_minor"] = tax_calc["pf_employee_minor"]
+            line["pf_employer_minor"] = tax_calc["pf_employer_minor"]
+            line["esi_employee_minor"] = tax_calc["esi_employee_minor"]
+            line["esi_employer_minor"] = tax_calc["esi_employer_minor"]
+            line["professional_tax_minor"] = tax_calc["professional_tax_minor"]
+            line["tds_minor"] = tax_calc["tds_minor"]
+            line["other_deductions_minor"] = tax_calc["other_deductions_minor"]
+            line["total_deductions_minor"] = tax_calc["total_deductions_minor"]
+            line["net_pay_minor"] = tax_calc["net_pay_minor"]
+            line["tax_regime"] = tax_regime
+            # Note: amount_minor remains as gross pay; net_pay_minor is the actual payable
+        else:
+            # Exception lines or zero pay - no deductions
+            line["pf_employee_minor"] = 0
+            line["pf_employer_minor"] = 0
+            line["esi_employee_minor"] = 0
+            line["esi_employer_minor"] = 0
+            line["professional_tax_minor"] = 0
+            line["tds_minor"] = 0
+            line["other_deductions_minor"] = 0
+            line["total_deductions_minor"] = 0
+            line["net_pay_minor"] = 0
+            line["tax_regime"] = "new"
+
         lines.append(line)
     return lines
 
@@ -807,6 +1136,18 @@ def _exception_line(employee: sqlite3.Row, message: str) -> dict[str, Any]:
         "currency": "INR",
         "scheduled_days": 0,
         "present_days": 0,
+        "lop_days": 0,
+        "lop_amount_minor": 0,
+        "pf_employee_minor": 0,
+        "pf_employer_minor": 0,
+        "esi_employee_minor": 0,
+        "esi_employer_minor": 0,
+        "professional_tax_minor": 0,
+        "tds_minor": 0,
+        "other_deductions_minor": 0,
+        "total_deductions_minor": 0,
+        "net_pay_minor": 0,
+        "tax_regime": "new",
         "amount_minor": 0,
         "line_status": "exception",
         "payment_status": "unrecorded",
@@ -875,24 +1216,36 @@ def create_or_refresh_run(connection: sqlite3.Connection, cutoff: date, pay_term
                 run_id, empid, source_pay_structure_id, employee_name, employment_type,
                 pay_group, pay_term, monthly_salary, currency, scheduled_days, present_days,
                 lop_days, lop_amount_minor,
+                pf_employee_minor, pf_employer_minor, esi_employee_minor, esi_employer_minor,
+                professional_tax_minor, tds_minor, other_deductions_minor, total_deductions_minor,
+                net_pay_minor, tax_regime,
                 amount_minor, line_status, payment_status, exception_message
             ) VALUES (
                 :run_id, :empid, :source_pay_structure_id, :employee_name, :employment_type,
                 :pay_group, :pay_term, :monthly_salary, :currency, :scheduled_days, :present_days,
                 :lop_days, :lop_amount_minor,
+                :pf_employee_minor, :pf_employer_minor, :esi_employee_minor, :esi_employer_minor,
+                :professional_tax_minor, :tds_minor, :other_deductions_minor, :total_deductions_minor,
+                :net_pay_minor, :tax_regime,
                 :amount_minor, :line_status, :payment_status, :exception_message
             )""",
-            [{"run_id": run_id, "lop_days": line.get("lop_days", 0), "lop_amount_minor": line.get("lop_amount_minor", 0), **line} for line in lines],
+            [{"run_id": run_id, **line} for line in lines],
         )
     else:
         connection.executemany(
             """INSERT INTO payroll_lines (
                 run_id, empid, source_pay_structure_id, employee_name, employment_type,
                 pay_group, pay_term, monthly_salary, currency, scheduled_days, present_days,
+                pf_employee_minor, pf_employer_minor, esi_employee_minor, esi_employer_minor,
+                professional_tax_minor, tds_minor, other_deductions_minor, total_deductions_minor,
+                net_pay_minor, tax_regime,
                 amount_minor, line_status, payment_status, exception_message
             ) VALUES (
                 :run_id, :empid, :source_pay_structure_id, :employee_name, :employment_type,
                 :pay_group, :pay_term, :monthly_salary, :currency, :scheduled_days, :present_days,
+                :pf_employee_minor, :pf_employer_minor, :esi_employee_minor, :esi_employer_minor,
+                :professional_tax_minor, :tds_minor, :other_deductions_minor, :total_deductions_minor,
+                :net_pay_minor, :tax_regime,
                 :amount_minor, :line_status, :payment_status, :exception_message
             )""",
             [{"run_id": run_id, **line} for line in lines],
@@ -905,6 +1258,7 @@ def create_or_refresh_run(connection: sqlite3.Connection, cutoff: date, pay_term
            updated_at = CURRENT_TIMESTAMP WHERE run_id = ?""",
         (total_minor, employee_count, exception_count, run_id),
     )
+    connection.commit()
     return run_id
 
 
@@ -987,3 +1341,432 @@ def update_run_payment_status(connection: sqlite3.Connection, run_id: int) -> st
         (status, run_id),
     )
     return status
+
+
+# ==================== PAYSLIP GENERATION ====================
+
+def generate_payslip_html(connection: sqlite3.Connection, run_id: int, empid: str) -> str:
+    """Generate HTML payslip for a specific employee in a payroll run."""
+    run = connection.execute("SELECT * FROM payroll_runs WHERE run_id = ?", (run_id,)).fetchone()
+    if not run:
+        raise PayrollError("Payroll run not found")
+
+    line = connection.execute(
+        """SELECT * FROM payroll_lines WHERE run_id = ? AND empid = ?""",
+        (run_id, empid)
+    ).fetchone()
+    if not line:
+        raise PayrollError("Payroll line not found for employee")
+
+    employee = connection.execute(
+        """SELECT empid, first_name, last_name, email, hire_date, grade, employment_type
+           FROM pd_employees WHERE empid = ?""",
+        (empid,)
+    ).fetchone()
+
+    bank = connection.execute(
+        """SELECT account_number, ifsc_code, bank_name, branch_name
+           FROM bank_details WHERE empid = ? ORDER BY id DESC LIMIT 1""",
+        (empid,)
+    ).fetchone()
+
+    period_start = date.fromisoformat(run["period_start"])
+    period_end = date.fromisoformat(run["period_end"])
+
+    html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payslip - {line['employee_name']} - {period_start.strftime('%B %Y')}</title>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+        .payslip {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        .header {{ text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }}
+        .company-name {{ font-size: 28px; font-weight: bold; color: #2c3e50; margin: 0; }}
+        .company-tagline {{ font-size: 14px; color: #7f8c8d; margin: 5px 0 0; }}
+        .payslip-title {{ font-size: 20px; font-weight: 600; color: #34495e; margin: 20px 0 0; }}
+        .period {{ font-size: 14px; color: #7f8c8d; }}
+        .employee-info {{ display: flex; justify-content: space-between; margin-bottom: 30px; padding: 15px; background: #ecf0f1; border-radius: 5px; }}
+        .info-group {{ display: flex; flex-direction: column; }}
+        .info-label {{ font-size: 12px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .info-value {{ font-size: 14px; font-weight: 600; color: #2c3e50; }}
+        .section {{ margin-bottom: 25px; }}
+        .section-title {{ font-size: 14px; font-weight: 600; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #bdc3c7; padding-bottom: 8px; margin-bottom: 15px; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ecf0f1; }}
+        th {{ font-weight: 600; color: #34495e; font-size: 13px; background: #f8f9fa; }}
+        td {{ font-size: 13px; color: #2c3e50; }}
+        .earnings td:last-child, .deductions td:last-child {{ text-align: right; }}
+        .total-row {{ font-weight: 700; background: #f8f9fa; }}
+        .net-pay {{ font-size: 18px; font-weight: 700; color: #27ae60; }}
+        .net-pay-label {{ color: #2c3e50; }}
+        .bank-info {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
+        .bank-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ecf0f1; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #bdc3c7; font-size: 12px; color: #7f8c8d; text-align: center; }}
+        .signature-line {{ margin-top: 30px; display: flex; justify-content: space-between; }}
+        .signature {{ text-align: center; width: 45%; }}
+        .signature p {{ margin: 40px 0 5px; border-top: 1px solid #2c3e50; padding-top: 5px; font-size: 12px; }}
+        @media print {{ body {{ background: none; padding: 0; }} .payslip {{ box-shadow: none; padding: 0; }} }}
+    </style>
+</head>
+<body>
+    <div class="payslip">
+        <div class="header">
+            <h1 class="company-name">PAYDAY CORPORATION</h1>
+            <p class="company-tagline">Employee Payroll Management System</p>
+            <h2 class="payslip-title">SALARY SLIP</h2>
+            <p class="period">Pay Period: {period_start.strftime('%d %b %Y')} - {period_end.strftime('%d %b %Y')}</p>
+        </div>
+
+        <div class="employee-info">
+            <div class="info-group">
+                <span class="info-label">Employee Name</span>
+                <span class="info-value">{line['employee_name']}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Employee ID</span>
+                <span class="info-value">{empid}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Grade / Pay Group</span>
+                <span class="info-value">{line['pay_group'] or 'N/A'} ({employee['grade'] if employee else 'N/A'})</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Employment Type</span>
+                <span class="info-value">{line['employment_type'] or 'N/A'}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Pay Term</span>
+                <span class="info-value">{line['pay_term'] or 'N/A'}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Date of Joining</span>
+                <span class="info-value">{employee['hire_date'] if employee else 'N/A'}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">PAN / Tax Regime</span>
+                <span class="info-value">New Regime (Default)</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Bank Details</span>
+                <span class="info-value">{bank['bank_name'] if bank else 'N/A'} - {bank['account_number'][-4:] if bank else 'N/A'}</span>
+            </div>
+        </div>
+
+        <div class="section earnings">
+            <h3 class="section-title">Earnings</h3>
+            <table>
+                <thead>
+                    <tr><th>Component</th><th>Amount (₹)</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Basic Salary</td>
+                        <td>{line['amount_minor'] / 100:,.2f}</td>
+                    </tr>
+                    {f'<tr><td>LOP Deduction (-)</td><td>-{line["lop_amount_minor"] / 100:,.2f}</td></tr>' if line["lop_amount_minor"] > 0 else ''}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section deductions">
+            <h3 class="section-title">Deductions</h3>
+            <table>
+                <thead>
+                    <tr><th>Component</th><th>Amount (₹)</th></tr>
+                </thead>
+                <tbody>
+                    {f'<tr><td>Provident Fund (Employee)</td><td>{line["pf_employee_minor"] / 100:,.2f}</td></tr>' if line["pf_employee_minor"] > 0 else ''}
+                    {f'<tr><td>ESI (Employee)</td><td>{line["esi_employee_minor"] / 100:,.2f}</td></tr>' if line["esi_employee_minor"] > 0 else ''}
+                    {f'<tr><td>Professional Tax</td><td>{line["professional_tax_minor"] / 100:,.2f}</td></tr>' if line["professional_tax_minor"] > 0 else ''}
+                    {f'<tr><td>TDS (Tax Deducted at Source)</td><td>{line["tds_minor"] / 100:,.2f}</td></tr>' if line["tds_minor"] > 0 else ''}
+                    {f'<tr><td>Other Deductions</td><td>{line["other_deductions_minor"] / 100:,.2f}</td></tr>' if line["other_deductions_minor"] > 0 else ''}
+                    <tr class="total-row">
+                        <td>Total Deductions</td>
+                        <td>{line["total_deductions_minor"] / 100:,.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">Net Pay</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #e8f8f5; border-radius: 5px; border: 2px solid #27ae60;">
+                <span class="net-pay-label">Net Payable Amount</span>
+                <span class="net-pay">₹{line["net_pay_minor"] / 100:,.2f}</span>
+            </div>
+        </div>
+
+        <div class="section" style="font-size: 12px; color: #7f8c8d;">
+            <p><strong>Employer Contributions (Not deducted from salary):</strong></p>
+            <div class="bank-info">
+                {f'<span>PF (Employer): ₹{line["pf_employer_minor"] / 100:,.2f}</span>' if line["pf_employer_minor"] > 0 else ''}
+                {f'<span>ESI (Employer): ₹{line["esi_employer_minor"] / 100:,.2f}</span>' if line["esi_employer_minor"] > 0 else ''}
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This is a computer-generated payslip and does not require a signature.</p>
+            <p>Generated on {date.today().strftime('%d %b %Y')} | Payroll Run ID: {run_id}</p>
+            <div class="signature-line">
+                <div class="signature"><p>Authorized Signatory</p></div>
+                <div class="signature"><p>Employee Acknowledgment</p></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+    return html
+
+
+def generate_payslip_pdf(connection: sqlite3.Connection, run_id: int, empid: str) -> bytes:
+    """Generate PDF payslip using WeasyPrint."""
+    html = generate_payslip_html(connection, run_id, empid)
+    from weasyprint import HTML
+    pdf = HTML(string=html).write_pdf()
+    return pdf
+
+
+def generate_all_payslips_pdf(connection: sqlite3.Connection, run_id: int) -> bytes:
+    """Generate combined PDF with all payslips for a payroll run."""
+    lines = connection.execute(
+        """SELECT empid FROM payroll_lines WHERE run_id = ? AND line_status = 'ready' ORDER BY empid""",
+        (run_id,)
+    ).fetchall()
+
+    from weasyprint import HTML
+    combined_html = ""
+    for i, line in enumerate(lines):
+        html = generate_payslip_html(connection, run_id, line["empid"])
+        if i > 0:
+            combined_html += '<div style="page-break-before: always;"></div>'
+        combined_html += html
+
+    pdf = HTML(string=combined_html).write_pdf()
+    return pdf
+
+
+# ==================== BANK ADVICE EXPORT ====================
+
+def generate_bank_advice_csv(connection: sqlite3.Connection, run_id: int) -> str:
+    """Generate bank advice CSV for salary disbursement (NACH/NEFT format)."""
+    lines = connection.execute(
+        """SELECT pl.empid, pl.employee_name, pl.net_pay_minor, pl.amount_minor,
+                  bd.account_number, bd.ifsc_code, bd.bank_name, bd.branch_name,
+                  bd.account_holder
+           FROM payroll_lines pl
+           LEFT JOIN bank_details bd ON bd.empid = pl.empid
+           WHERE pl.run_id = ? AND pl.line_status = 'ready' AND pl.net_pay_minor > 0
+           ORDER BY pl.empid""",
+        (run_id,)
+    ).fetchall()
+
+    run = connection.execute("SELECT period_start, period_end FROM payroll_runs WHERE run_id = ?", (run_id,)).fetchone()
+    period = f"{date.fromisoformat(run['period_start']).strftime('%b%y').upper()}" if run else "SALARY"
+
+    import csv
+    import io
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row (standard NACH format)
+    writer.writerow([
+        "Sr No", "Employee ID", "Employee Name", "Account Number", "IFSC Code",
+        "Bank Name", "Branch", "Account Holder Name", "Amount (INR)", "Narration"
+    ])
+
+    for idx, line in enumerate(lines, 1):
+        account_holder = line["account_holder"] or line["employee_name"]
+        narration = f"SALARY {period} {line['empid']}"
+        writer.writerow([
+            idx,
+            line["empid"],
+            line["employee_name"],
+            line["account_number"] or "",
+            line["ifsc_code"] or "",
+            line["bank_name"] or "",
+            line["branch_name"] or "",
+            account_holder,
+            f"{line['net_pay_minor'] / 100:.2f}",
+            narration
+        ])
+
+    # Total row
+    total_net = sum(line["net_pay_minor"] for line in lines) / 100
+    writer.writerow(["", "", "", "", "", "", "", "TOTAL", f"{total_net:.2f}", ""])
+
+    return output.getvalue()
+
+
+def generate_bank_advice_excel(connection: sqlite3.Connection, run_id: int) -> bytes:
+    """Generate bank advice Excel file for salary disbursement."""
+    lines = connection.execute(
+        """SELECT pl.empid, pl.employee_name, pl.net_pay_minor, pl.amount_minor,
+                  pl.pf_employee_minor, pl.esi_employee_minor, pl.professional_tax_minor,
+                  pl.tds_minor, pl.total_deductions_minor,
+                  bd.account_number, bd.ifsc_code, bd.bank_name, bd.branch_name,
+                  bd.account_holder
+           FROM payroll_lines pl
+           LEFT JOIN bank_details bd ON bd.empid = pl.empid
+           WHERE pl.run_id = ? AND pl.line_status = 'ready' AND pl.net_pay_minor > 0
+           ORDER BY pl.empid""",
+        (run_id,)
+    ).fetchall()
+
+    run = connection.execute("SELECT period_start, period_end FROM payroll_runs WHERE run_id = ?", (run_id,)).fetchone()
+    period = f"{date.fromisoformat(run['period_start']).strftime('%B %Y')}" if run else "Salary"
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bank Advice"
+
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    data_alignment = Alignment(horizontal="left", vertical="center")
+    amount_alignment = Alignment(horizontal="right", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    total_font = Font(bold=True, size=11)
+    total_fill = PatternFill(start_color="E8F8F5", end_color="E8F8F5", fill_type="solid")
+
+    # Title row
+    ws.merge_cells('A1:J1')
+    title_cell = ws['A1']
+    title_cell.value = f"BANK ADVICE FOR SALARY DISBURSEMENT - {period.upper()}"
+    title_cell.font = Font(bold=True, size=14, color="2C3E50")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.merge_cells('A2:J2')
+    subtitle_cell = ws['A2']
+    subtitle_cell.value = f"Payroll Run ID: {run_id} | Generated on: {date.today().strftime('%d %b %Y')}"
+    subtitle_cell.font = Font(size=10, color="7F8C8D")
+    subtitle_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Headers
+    headers = [
+        "Sr No", "Employee ID", "Employee Name", "Account Number", "IFSC Code",
+        "Bank Name", "Branch", "Account Holder Name", "Net Amount (INR)", "Narration"
+    ]
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+
+    # Data rows
+    for idx, line in enumerate(lines, 1):
+        row_num = idx + 4
+        account_holder = line["account_holder"] or line["employee_name"]
+        narration = f"SALARY {period} {line['empid']}"
+
+        data = [
+            idx,
+            line["empid"],
+            line["employee_name"],
+            line["account_number"] or "",
+            line["ifsc_code"] or "",
+            line["bank_name"] or "",
+            line["branch_name"] or "",
+            account_holder,
+            line["net_pay_minor"] / 100,
+            narration
+        ]
+
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col, value=value)
+            cell.border = thin_border
+            if col == 9:  # Amount column
+                cell.alignment = amount_alignment
+                cell.number_format = '#,##0.00'
+            else:
+                cell.alignment = data_alignment
+
+    # Total row
+    total_row = len(lines) + 5
+    total_net = sum(line["net_pay_minor"] for line in lines) / 100
+    total_data = ["", "", "", "", "", "", "", "TOTAL", total_net, ""]
+
+    for col, value in enumerate(total_data, 1):
+        cell = ws.cell(row=total_row, column=col, value=value)
+        cell.font = total_font
+        cell.fill = total_fill
+        cell.border = thin_border
+        if col == 9:
+            cell.alignment = amount_alignment
+            cell.number_format = '#,##0.00'
+        else:
+            cell.alignment = data_alignment
+
+    # Adjust column widths
+    column_widths = [8, 15, 25, 20, 15, 20, 15, 25, 15, 30]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    # Save to bytes
+    import io
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+# ==================== TAX REPORTS ====================
+
+def generate_tds_report(connection: sqlite3.Connection, run_id: int) -> dict[str, Any]:
+    """Generate TDS deduction report for a payroll run."""
+    lines = connection.execute(
+        """SELECT empid, employee_name, pay_group, amount_minor, tds_minor,
+                  pf_employee_minor, esi_employee_minor, professional_tax_minor,
+                  net_pay_minor, tax_regime
+           FROM payroll_lines
+           WHERE run_id = ? AND line_status = 'ready' AND tds_minor > 0
+           ORDER BY empid""",
+        (run_id,)
+    ).fetchall()
+
+    total_tds = sum(line["tds_minor"] for line in lines) / 100
+    total_pf = sum(line["pf_employee_minor"] for line in lines) / 100
+    total_esi = sum(line["esi_employee_minor"] for line in lines) / 100
+    total_pt = sum(line["professional_tax_minor"] for line in lines) / 100
+
+    return {
+        "run_id": run_id,
+        "employees": [
+            {
+                "empid": line["empid"],
+                "name": line["employee_name"],
+                "pay_group": line["pay_group"],
+                "gross": line["amount_minor"] / 100,
+                "tds": line["tds_minor"] / 100,
+                "pf": line["pf_employee_minor"] / 100,
+                "esi": line["esi_employee_minor"] / 100,
+                "professional_tax": line["professional_tax_minor"] / 100,
+                "net_pay": line["net_pay_minor"] / 100,
+                "tax_regime": line["tax_regime"]
+            }
+            for line in lines
+        ],
+        "summary": {
+            "total_employees": len(lines),
+            "total_gross": sum(line["amount_minor"] for line in lines) / 100,
+            "total_tds": total_tds,
+            "total_pf_employee": total_pf,
+            "total_esi_employee": total_esi,
+            "total_professional_tax": total_pt,
+            "total_net_pay": sum(line["net_pay_minor"] for line in lines) / 100,
+        }
+    }
